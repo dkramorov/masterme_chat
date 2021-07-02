@@ -158,7 +158,7 @@ class Jaba {
 void main() async {
   Jaba jabber = Jaba(
     login: 'jocker@anhel.1sprav.ru',
-    passwd: 'Cnfylfhnysq1',
+    passwd: '',
   );
   jabber.conn.connect();
   //print(jabber.xmlUtils.xmlElement('div'));
