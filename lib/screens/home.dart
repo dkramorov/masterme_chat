@@ -4,6 +4,7 @@ import 'package:masterme_chat/screens/registration.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/widgets/rounded_button_widget.dart';
 
+import 'package:xmpp_stone/xmpp_stone.dart' as xmpp;
 /*
 // websocket
 import 'package:web_socket_channel/io.dart';
@@ -51,6 +52,10 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+
+    xmpp.XmppAccountSettings account = xmpp.XmppAccountSettings("jocker", "jocker", "anhel.1sprav.ru", "Cnfylfhnysq1", 5222);
+    xmpp.Connection connection = new xmpp.Connection(account);
+    connection.connect();
 
     animController = AnimationController(
       duration: Duration(
