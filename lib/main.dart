@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:masterme_chat/constants.dart';
+import 'package:masterme_chat/screens/add2roster.dart';
 import 'package:masterme_chat/screens/chat.dart';
 import 'package:masterme_chat/screens/home.dart';
 import 'package:masterme_chat/screens/login.dart';
 import 'package:masterme_chat/screens/registration.dart';
+import 'package:masterme_chat/screens/roster.dart';
+import 'package:masterme_chat/screens/settings.dart';
+
+import 'constants.dart';
+import 'helpers/log.dart';
 
 void main() {
   runApp(MyApp());
@@ -12,11 +17,13 @@ void main() {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+
     return MaterialApp(
-      title: 'Чат',
-      theme: ThemeData.dark().copyWith(
+      debugShowCheckedModeBanner: false,
+      title: '8800 help',
+      theme: ThemeData.light().copyWith(
         primaryColor: PRIMARY_BG_COLOR,
-        scaffoldBackgroundColor: PRIMARY_BG_COLOR,
+        //scaffoldBackgroundColor: PRIMARY_BG_COLOR,
       ),
       initialRoute: HomeScreen.id,
       routes: {
@@ -24,6 +31,9 @@ class MyApp extends StatelessWidget {
         ChatScreen.id: (context) => ChatScreen(),
         LoginScreen.id: (context) => LoginScreen(),
         RegistrationScreen.id: (context) => RegistrationScreen(),
+        RosterScreen.id: (context) => RosterScreen(),
+        Add2RosterScreen.id: (context) => Add2RosterScreen(),
+        SettingsScreen.id: (context) => SettingsScreen(),
       },
     );
   }

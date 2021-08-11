@@ -1,34 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/db/user_chat_model.dart';
+
 import 'package:masterme_chat/screens/login.dart';
-import 'package:masterme_chat/screens/registration.dart';
 import 'package:masterme_chat/constants.dart';
+import 'package:masterme_chat/screens/registration.dart';
+import 'package:masterme_chat/screens/settings.dart';
+import 'package:masterme_chat/services/jabber_connection.dart';
+import 'package:masterme_chat/services/push_manager.dart';
 import 'package:masterme_chat/widgets/rounded_button_widget.dart';
-
-import 'package:xmpp_stone/xmpp_stone.dart' as xmpp;
-/*
-// websocket
-import 'package:web_socket_channel/io.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/status.dart' as WS_STATUS;
-
-Future<IOWebSocketChannel> ws_connect() async {
-  final String WS_ADDR = 'wss://anhel.1sprav.ru/wss/';
-  //final channel = await IOWebSocketChannel.connect(WS_ADDR);
-  final channel = await WebSocketChannel.connect(Uri.parse(WS_ADDR));
-
-  channel.stream.listen((message) {
-    //channel.sink.add('received!');
-    //channel.sink.close(status.goingAway);
-    print(message);
-  });
-
-  final String cmd = "<open xmlns='urn:ietf:params:xml:ns:xmpp-framing' to='anhel.1sprav.ru' version='1.0'/>";
-  channel.sink.add(cmd);
-
-
-  return channel;
-}
-*/
+import 'package:package_info_plus/package_info_plus.dart';
 
 class HomeScreen extends StatefulWidget {
   // Обязательно '/' без него завалится все нахер
@@ -40,113 +20,161 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
+  String appVersion = '';
 
-  AnimationController animController;
+  @override
+  void setState(fn) {
+    if (mounted) {
+      super.setState(fn);
+    }
+  }
 
   @override
   void dispose() {
-    animController.dispose();
     super.dispose();
+  }
+
+  Future<void> pushMessagesInit() async {
+    final PushNotificationsManager pushManager = PushNotificationsManager();
+    await pushManager.init();
+  }
+
+  Future<void> _initPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      appVersion = info.version + '+' + info.buildNumber;
+    });
+  }
+
+  Future<void> _initHealthcheck() async {
+    JabberConn.healthcheck();
+  }
+
+  /* Пропускаем первую страничку и идем на вторую */
+  Future<void> passMainPage() async {
+    if (JabberConn.connection != null && JabberConn.connection.authenticated) {
+      return;
+    }
+    List<UserChatModel> users = await UserChatModel.getAllUsers(limit: 1);
+    // Если мы нашли юзера и мы на этой страничке
+    if(ModalRoute.of(context).isCurrent) {
+      Navigator.pushNamed(context, LoginScreen.id);
+    }
   }
 
   @override
   void initState() {
     super.initState();
-
-    xmpp.XmppAccountSettings account = xmpp.XmppAccountSettings("jocker", "jocker", "anhel.1sprav.ru", "Cnfylfhnysq1", 5222);
-    xmpp.Connection connection = new xmpp.Connection(account);
-    connection.connect();
-
-    animController = AnimationController(
-      duration: Duration(
-        seconds: 1,
-      ),
-      vsync: this,
-      upperBound: LOGO_SIZE,
-    );
-    animController.forward();
-    animController.addListener(() {
-      setState(() {});
-    });
+    pushMessagesInit();
+    _initHealthcheck();
+    _initPackageInfo();
+    passMainPage();
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'ЧАТ',
+          'Приветствуем',
         ),
       ),
-      body: Container(
+      body: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 25.0,
+          horizontal: 40.0,
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Expanded(
-              flex: 2,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              flex: 10,
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: EdgeInsets.only(
-                      right: 15.0,
-                    ),
-                    child: Hero(
-                      tag: LOGO_ICON_TAG,
-                      child: Icon(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
                         Icons.chat_bubble_outline_rounded,
-                        size: animController.value,
+                        size: LOGO_SIZE,
+                        color: Colors.green,
                       ),
-                    ),
+                      /*
+                      Hero(
+                        tag: LOGO_ICON_TAG,
+                        child: Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: animController.value,
+                          color: Colors.green,
+                        ),
+                      ),
+                       */
+                      SizedBox(
+                        width: 15.0,
+                      ),
+                      Text(
+                        LOGO_NAME,
+                        style: SUBTITLE_STYLE,
+                      ),
+                    ],
                   ),
-                  Text(
-                    LOGO_NAME,
-                    style: SUBTITLE_STYLE,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    height: 15.0,
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: 10.0,
-                    ),
-                    child: RoundedButtonWidget(
-                      text: Text('Авторизация'),
-                      color: Colors.lightBlue[900],
-                      onPressed: () {
-                        Navigator.pushNamed(context, LoginScreen.id);
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        vertical: 10.0,
-                    ),
-                    child: RoundedButtonWidget(
-                      text: Text('Регистрация'),
-                      color: Colors.blueAccent[900],
-                      onPressed: () {
-                        Navigator.pushNamed(context, RegistrationScreen.id);
-                      },
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 35.0,
+                      ),
+                      RoundedButtonWidget(
+                        text: Text(
+                          'Войти в чат',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        color: Colors.green[500],
+                        onPressed: () {
+                          Navigator.pushNamed(context, LoginScreen.id);
+                        },
+                      ),
+                      SizedBox(
+                        height: 15.0,
+                      ),
+                      RoundedButtonWidget(
+                        text: Text(
+                          'Регистрация',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        color: Colors.green[500],
+                        onPressed: () {
+                          Navigator.pushNamed(context, RegistrationScreen.id);
+                        },
+                      ),
+                      SizedBox(
+                        height: 15.0,
+                      ),
+                      RoundedButtonWidget(
+                        text: Text(
+                          'Настройки',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        color: Colors.green[500],
+                        onPressed: () {
+                          Navigator.pushNamed(context, SettingsScreen.id);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             Expanded(
               flex: 1,
-              child: Container(),
+              child: Container(
+                width: double.infinity,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  appVersion,
+                ),
+              ),
             ),
           ],
         ),
