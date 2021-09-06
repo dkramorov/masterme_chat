@@ -1,30 +1,38 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 
 import 'package:masterme_chat/db/user_chat_model.dart';
-import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/constants.dart';
 
 // xmpp
 import 'package:xmpp_stone/xmpp_stone.dart' as xmpp;
 
-class LoginScreenLogic {
+class LoginScreenLogic extends AbstractScreenLogic {
   static const TAG = 'LoginScreenLogic';
 
   // Отслеживание состояния JabberConn
   bool loggedIn = false;
   UserChatModel curUser;
 
-  Timer loginScreenTimer;
+  // Если приехало пуш уведомление,
+  // то мы через экран авторизации
+  // должны выбрать нужный чат
+  String pushFrom;
+  String pushTo;
 
-  Function setStateCallback;
   LoginScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
-
-    this.loginScreenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
+    this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
       checkState();
       //Log.d(TAG, '${t.tick}');
     });
+  }
+
+  @override
+  String getTAG() {
+    return TAG;
   }
 
   void openHUD() {
@@ -69,12 +77,10 @@ class LoginScreenLogic {
     if (JabberConn.connection != null && JabberConn.connection.authenticated) {
       return;
     }
-    List<UserChatModel> users = await UserChatModel.getAllUsers();
-    if (users.isEmpty) {
+    UserChatModel curUser = await UserChatModel.getLastLoginUser();
+    if (curUser == null) {
       return;
     }
-
-    curUser = users[users.length - 1];
     openHUD();
     final login = curUser.login.replaceAll('@$JABBER_SERVER', '');
     final passwd = curUser.passwd;
@@ -83,33 +89,36 @@ class LoginScreenLogic {
   }
 
   /* Втыкаем пользователя в базу */
-  Future<void> user2Db(String login, String passwd) async {
-    UserChatModel user = await UserChatModel.getByLogin(login);
-    if (user == null) {
-      user = UserChatModel(
-        login: login,
-        passwd: passwd,
-      );
-      await user.insert2Db();
-    }
-
+  static Future<void> user2Db(String login, String passwd) async {
+    UserChatModel user = await UserChatModel.insertLastLoginUser(login, passwd);
     JabberConn.loggedIn = true;
     JabberConn.curUser = user;
   }
 
-  /* Проверяем состояние экрана авторизации на соответствие JabberConn состоянию */
-  Future<void> checkState() async {
-    // Состояние не поменялось
-    if (JabberConn.loggedIn == loggedIn && JabberConn.curUser == curUser) {
-      return;
+  /* Если приходило пушь уведомление,
+     у нас есть данные от кого=>кому
+     в случае перехода на чат, надо попытаться
+     сразу открыть чат с "от кого"
+   */
+  Map<String, String> getPushArguments() {
+    Map<String, String> arguments = {};
+    if (pushFrom != null && pushTo != null) {
+      return {'from': pushFrom, 'to': pushTo};
     }
-    Log.w(TAG, 'STATE CHANGED');
-    loggedIn = JabberConn.loggedIn;
-    curUser = JabberConn.curUser;
+    return null;
+  }
 
-    // Состояние изменилось раз мы тут
-    setStateCallback({
-      'loggedIn': loggedIn,
-    });
+  /* Получение аргументов на вьюхе (пушь уведомление) */
+  void parseArguments(BuildContext context) {
+    // Аргументы доступны только после получения контекста
+    final arguments = ModalRoute.of(context).settings.arguments as Map;
+    if (arguments != null) {
+      String payload = arguments['payload'];
+      if (payload != null && payload.contains('=>')) {
+        List<String> result = payload.split('=>');
+        pushFrom = result[0];
+        pushTo = result[1];
+      }
+    }
   }
 }

@@ -13,6 +13,8 @@ class RoundedInputText extends StatelessWidget {
   final TextEditingController controller;
   final List<TextInputFormatter> formatters;
   final TextInputType keyboardType;
+  final bool showCursor;
+  final bool readOnly;
 
   RoundedInputText({
     this.hint,
@@ -23,6 +25,8 @@ class RoundedInputText extends StatelessWidget {
     this.controller,
     this.formatters,
     this.keyboardType,
+    this.showCursor,
+    this.readOnly,
   });
 
   TextInputType getKeyboardType() {
@@ -49,6 +53,8 @@ class RoundedInputText extends StatelessWidget {
       validator: validator,
       initialValue: controller == null ? defaultValue : null,
       autovalidateMode: validator == null ? AutovalidateMode.disabled : AutovalidateMode.onUserInteraction,
+      showCursor: showCursor != null ? showCursor : true,
+      readOnly: readOnly != null ? readOnly : false,
     );
   }
 }

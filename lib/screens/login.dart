@@ -37,8 +37,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String passwd = ''; // protect from null
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  String jabberServer;
-
   StreamSubscription connectionSubscription;
 
   final TextEditingController loginController = TextEditingController();
@@ -46,7 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final connectionErrorSnackBar = SnackBar(
     content: Text(
-      'Не удается установить соединение, проверьте адрес сервера или подключение к интернет сети',
+      'Не удается установить соединение,' +
+          'проверьте адрес сервера или подключение к интернет сети',
     ),
   );
 
@@ -104,12 +103,11 @@ class _LoginScreenState extends State<LoginScreen> {
         // Только если мы на этой страничке
         // Записываем в базень логин пароль
         logic.checkState();
-        if (ModalRoute.of(context).isCurrent) {
-          logic.user2Db(login, passwd).then((success) {
+        if (mounted && ModalRoute.of(context).isCurrent) {
+          LoginScreenLogic.user2Db(login, passwd).then((success) {
             JabberConn.sendToken();
             logic.checkState();
             logic.closeHUD();
-            Navigator.pushNamed(context, RosterScreen.id);
           });
         }
       } else if (event == xmpp.XmppConnectionState.AuthenticationFailure) {
@@ -136,6 +134,19 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       if (state['loggedIn'] != null && state['loggedIn'] != loggedIn) {
         loggedIn = state['loggedIn'];
+
+        // Переадресация по пушу
+        if (ModalRoute.of(context).isCurrent) {
+          if (logic.pushTo != null && logic.pushFrom != null) {
+            // Обязательно, иначе
+            // setState() or markNeedsBuild called during build
+            Future.delayed(Duration.zero, () async {
+              Navigator.pushNamed(
+                  context, RosterScreen.id, arguments: logic.getPushArguments());
+            });
+          }
+        }
+
       }
       if (state['login'] != null && state['login'] != login) {
         login = state['login'];
@@ -196,6 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    logic.parseArguments(context);
     logic.checkState();
 
     return Scaffold(

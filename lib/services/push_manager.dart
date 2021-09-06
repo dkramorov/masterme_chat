@@ -7,6 +7,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/screens/chat.dart';
+import 'package:masterme_chat/screens/home.dart';
+import 'package:masterme_chat/screens/login.dart';
 import 'package:rxdart/subjects.dart';
 
 import 'package:masterme_chat/services/jabber_connection.dart';
@@ -56,9 +59,24 @@ class ReceivedNotification {
 /* Remote Notifications */
 Future<dynamic> onBackgroundMessageHandler(Map<String, dynamic> message) async {
   await Firebase.initializeApp();
-  //print('onBackgroundMessageHandler: $message');
-  //PushNotificationsManager.showNotificationOnEvent(message);
+  print("+_+++++++++++++++++++++++++++++++++++++++++++++++++++++");
+/*
+  if (PushNotificationsManager.materialKey == null) {
+    return;
+  }
 
+  Map<String, dynamic> parsedMsg = PushNotificationsManager.parseIncomingPushNotification(message);
+
+  // Толкаем на главную
+  Navigator.of(PushNotificationsManager.materialKey.currentContext)
+      .popUntil((route) => route.settings.name == HomeScreen.id);
+  // Толкаем на чат, т/к пока пуши только с чата
+  await Navigator.pushNamed(
+    PushNotificationsManager.materialKey.currentContext,
+    LoginScreen.id,
+    arguments: {'payload': parsedMsg['resultText']},
+  );
+ */
 }
 
 /* Local Notifications */
@@ -69,7 +87,11 @@ Future onDidReceiveLocalNotification(
 }
 
 class PushNotificationsManager {
-  static final TAG = 'PushNotificationsManager';
+  static const TAG = 'PushNotificationsManager';
+  // Для получения ссылки на контекст
+  // MaterialApp(navigatorKey: PushNotificationsManager.materialKey, ... // GlobalKey()
+  // чтобы получить контекст PushNotificationsManager.materialKey.currentContext
+  static final materialKey = GlobalKey<NavigatorState>();
 
   PushNotificationsManager._();
   factory PushNotificationsManager() => _instance;
@@ -93,7 +115,7 @@ class PushNotificationsManager {
   );
 
   static const AndroidNotificationDetails androidPlatformChannelSpecifics =
-  AndroidNotificationDetails(
+      AndroidNotificationDetails(
     channelId,
     channelName,
     channelDesc,
@@ -124,30 +146,47 @@ class PushNotificationsManager {
     didReceiveLocalNotificationSubject.close();
   }
 
+  // Приходит сообщение, значит, надо распарсить
+  static Map<String, dynamic> parseIncomingPushNotification(Map<String, dynamic> message) {
+    Map<String, dynamic> result = {};
+    // APNS has strange format
+    var aps = message['aps'];
+    if (aps != null) {
+      result['title'] = aps['alert']['title'];
+      result['body'] = aps['alert']['body'];
+      result['sender'] = message['sender'];
+      result['receiver'] = message['receiver'];
+    } else {
+      result['title'] = message['notification']['title'];
+      result['body'] = message['notification']['body'];
+      var data = message['data'];
+      result['sender'] = message['sender'];
+      result['receiver'] = message['receiver'];
+      if (data != null) {
+        result['sender'] = data['sender'];
+        result['receiver'] = data['receiver'];
+      }
+    }
+    result['resultText'] = result['sender'] + '=>' + result['receiver'];
+    return result;
+  }
+
   /* Отправляем локальный пуш на событие серверного пуша */
   static Future<void> showNotificationOnEvent(Map<String, dynamic> message,
       {bool foreground = false}) async {
-    final title = message['notification']['title'];
-    final body = message['notification']['body'];
-    final data = message['data'];
-    String sender = message['sender'];
-    String receiver = message['receiver'];
-    if (data != null) {
-      sender = data['sender'];
-      receiver = data['receiver'];
-    }
-    Log.d(TAG, 'New push $sender ${JabberConn.receiver}');
-    if (foreground && sender == JabberConn.receiver) {
-      Log.d(TAG, 'already foreground chat with user $receiver');
+    Map<String, dynamic> parsedMsg = parseIncomingPushNotification(message);
+
+    if (foreground && parsedMsg['sender'] == JabberConn.receiver) {
+      Log.d(TAG, 'already foreground chat ${parsedMsg.toString()}');
       return;
     }
     PushNotificationsManager.showNotification(
-        title, body, '$sender=>$receiver');
+        parsedMsg['title'], parsedMsg['body'], parsedMsg['resultText']);
   }
 
   Future<void> init() async {
+    await Firebase.initializeApp();
     if (!_initialized) {
-      await Firebase.initializeApp();
       _firebaseMessaging = FirebaseMessaging();
 
       _firebaseMessaging.configure(
@@ -185,7 +224,8 @@ class PushNotificationsManager {
       });
 
       localNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
       localNotificationsPlugin.initialize(initializationSettings,
@@ -197,9 +237,30 @@ class PushNotificationsManager {
         selectNotificationSubject.add(payload);
       });
 
+      // Когда жмакаем на push уведомление
+      selectNotificationSubject.stream.listen((String payload) async {
+        if (materialKey == null) {
+          return;
+        }
+
+        // Если мы уже на страничке чатов
+        if (JabberConn.receiver != null &&
+            payload.contains(JabberConn.receiver)) {
+          return;
+        }
+        // Толкаем на главную
+        Navigator.of(materialKey.currentContext)
+            .popUntil((route) => route.settings.name == HomeScreen.id);
+        // Толкаем на чат, т/к пока пуши только с чата
+        await Navigator.pushNamed(
+          materialKey.currentContext,
+          LoginScreen.id,
+          arguments: {'payload': payload},
+        );
+      });
+
       _initialized = true;
     }
-
   }
 
   /*

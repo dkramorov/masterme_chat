@@ -5,11 +5,14 @@ import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/screens/add2roster.dart';
+import 'package:masterme_chat/screens/chat.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/widgets/chat/user_widget.dart';
 
 // xmpp
 import 'package:xmpp_stone/xmpp_stone.dart' as xmpp;
+
+import 'logic/roster_logic.dart';
 
 class RosterScreen extends StatefulWidget {
   static const String id = '/roster_screen/';
@@ -20,7 +23,11 @@ class RosterScreen extends StatefulWidget {
 
 class _RosterScreenState extends State<RosterScreen> {
   final String TAG = 'RosterScreen';
-  xmpp.MessageHandler messageHandler;
+  RosterScreenLogic logic;
+
+  // Переменные JabberConn для отслеживания изменения состояния
+  bool loggedIn = false;
+  int connectionInstanceKey = 0;
 
   StreamSubscription presenceSubscription;
   StreamSubscription rosterSubscription;
@@ -38,24 +45,24 @@ class _RosterScreenState extends State<RosterScreen> {
     super.dispose();
   }
 
-  /* Добавляем в ростер если отсутствует */
-  Future<void> add2Roster(ContactChatModel contact) async {
-    final String me = JabberConn.connection.fullJid.userAtDomain;
-    final ContactChatModel analog = await ContactChatModel.getByLogin(me, contact.login);
-    if (analog == null) {
-      contact.insert2Db();
+  @override
+  void setState(fn) {
+    if (mounted) {
+      super.setState(fn);
     }
   }
 
-  /* Удаление из ростера */
-  Future<void> dropFromRoster(ContactChatModel contact) async {
-    contact.delete2Db();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-
+  /* Слушаем состояние подключения */
+  Future<void> listenStreams() async {
+    if (connectionInstanceKey == JabberConn.instanceKey) {
+      return;
+    }
+    if (presenceSubscription != null) {
+      presenceSubscription.cancel();
+      Log.d(TAG, 'presenceSubscription cancel and new');
+    } else {
+      Log.d(TAG, 'presenceSubscription new');
+    }
     presenceSubscription =
         JabberConn.presenceManager.subscriptionStream.listen((streamEvent) {
       Log.i(
@@ -69,57 +76,69 @@ class _RosterScreenState extends State<RosterScreen> {
         Log.i(TAG, 'SUBSCRIPTION ACCEPTED' + streamEvent.jid.userAtDomain);
       }
     });
+    if (rosterSubscription != null) {
+      rosterSubscription.cancel();
+      Log.d(TAG, 'rosterSubscription cancel and new');
+    } else {
+      Log.d(TAG, 'rosterSubscription new');
+    }
 
+    // TODO: не вызывается при инициализации
     rosterSubscription = JabberConn.rosterManager.rosterStream.listen((event) {
-      List<ContactChatModel> newChatUsers = [];
-      for (xmpp.Buddy user in event) {
-        ContactChatModel contact = ContactChatModel(
-          name: user.name != null ? user.name : user.jid.local,
-          login: user.jid.userAtDomain,
-          parent: JabberConn.connection.fullJid.userAtDomain,
-        );
-        newChatUsers.add(contact);
-        bool inList = false;
-        for (ContactChatModel item in chatUsers) {
-          if (item.login == contact.login) {
-            inList = true;
-          }
-        }
-        if (!inList) {
-          // В списке чувак отсутствует - добавляем
-          setState(() {
-            chatUsers.add(contact);
-          });
-          add2Roster(contact);
-        }
-      }
-      JabberConn.contactsList = newChatUsers;
-      if (!mounted) return;
-      /*
-      setState(() {
-        chatUsers = newChatUsers;
-      });
-       */
+      logic.receiveContacts(event);
     });
-    loadChatUsers();
+    connectionInstanceKey = JabberConn.instanceKey;
   }
 
-  @override
-  void setState(fn) {
-    if (mounted) {
-      super.setState(fn);
+  // Переход на чат с пользователем,
+  // если было пушь уведомление
+  void gotoChatFromPush(List<ContactChatModel> chatUsers) {
+    if (logic.pushFrom == null || logic.pushTo == null) {
+      return;
+    }
+    for (ContactChatModel chatUser in chatUsers) {
+      String phone = chatUser.login.split('@')[0];
+      if (phone == logic.pushFrom && ModalRoute.of(context).isCurrent) {
+        Navigator.pushNamed(context, ChatScreen.id, arguments: {
+          'name': chatUser.name,
+          'image': chatUser.avatar != null
+              ? chatUser.avatar
+              : 'assets/avatars/user.png',
+          'buddy': chatUser.buddy,
+        });
+        return;
+      }
     }
   }
 
-  Future<void> loadChatUsers() async {
-    final List<ContactChatModel> contacts = await ContactChatModel.getAllContacts(JabberConn.connection.fullJid.userAtDomain);
+  // Обновление состояния
+  void setStateCallback(Map<String, dynamic> state) {
     setState(() {
-      chatUsers = contacts;
+      if (state['loggedIn'] != null && state['loggedIn'] != loggedIn) {
+        loggedIn = state['loggedIn'];
+      }
+      if (state['chatUsers'] != null) {
+        chatUsers = state['chatUsers'];
+        Future.delayed(Duration.zero, () async {
+          gotoChatFromPush(state['chatUsers']);
+        });
+      }
     });
+    if (loggedIn) {
+      listenStreams();
+    }
+  }
+
+  @override
+  void initState() {
+    logic = RosterScreenLogic(setStateCallback: setStateCallback);
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    logic.parseArguments(context);
+    logic.loadChatUsers();
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
@@ -206,15 +225,12 @@ class _RosterScreenState extends State<RosterScreen> {
             key: UniqueKey(),
             background: Container(color: Colors.red),
             onDismissed: (direction) {
-              JabberConn.rosterManager.removeRosterItem(item.buddy);
+              logic.dropActionFromUI(item);
               ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('${item.name} удален из контактов')));
-              dropFromRoster(item);
-              setState(() {
-                chatUsers.removeAt(index);
-              });
             },
             child: ChatUserWidget(
+              key: item.key == null ? UniqueKey() : item.key,
               name: item.name != null ? item.name : '',
               messageText: item.msg != null ? item.msg : item.login,
               image:

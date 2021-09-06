@@ -10,9 +10,9 @@ import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/widgets/chat/image_widget.dart';
 import 'package:masterme_chat/widgets/chat/file_widget.dart';
 import 'package:masterme_chat/widgets/chat/video_message_widget.dart';
+import 'package:masterme_chat/widgets/chat/audio_message_widget.dart';
 
 class Message extends StatefulWidget {
-
   Key key;
 
   // DateFormat('yyyy-MM-dd');
@@ -307,6 +307,11 @@ class _MessageState extends State<Message> implements IMessageWidget {
                   placeholder: loaderImage,
                 ),
               );
+      } else if (widget.urlType == 'audio') {
+        child = AudioMessageWidget(
+          file: widget.file,
+          url: widget.url,
+        );
       } else if (widget.urlType == 'video') {
         child = VideoMessageWidget(
           file: widget.file,

@@ -18,7 +18,7 @@ class Add2RosterScreen extends StatefulWidget {
 
 class _Add2RosterScreenState extends State<Add2RosterScreen> {
   GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  String newUser = '';
+  String newUser = '8';
 
   @override
   void setState(fn) {
@@ -108,7 +108,7 @@ class _Add2RosterScreenState extends State<Add2RosterScreen> {
                             }
                           },
                           keyboardType: TextInputType.number,
-                          defaultValue: '',
+                          defaultValue: newUser,
                         ),
                         SizedBox(
                           height: 15.0,

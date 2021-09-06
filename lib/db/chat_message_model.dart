@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/widgets/chat/message_widget.dart';
 
 import 'database_singletone.dart';

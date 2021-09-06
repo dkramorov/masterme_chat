@@ -11,6 +11,7 @@ import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/save_network_file.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/widgets/chat/message_widget.dart';
+import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/constants.dart';
 
 // xmpp
@@ -22,14 +23,12 @@ import 'package:xmpp_stone/xmpp_stone.dart' as xmpp;
 2) отправляем запрос на сервер по завершению
 3) если прилетели сообщения - обновляем, сортируем
 */
-class ChatScreenLogic {
+class ChatScreenLogic extends AbstractScreenLogic {
   static const TAG = 'ChatScreenLogic';
 
   // Отслеживание состояния JabberConn
   bool loggedIn = false;
   UserChatModel curUser;
-
-  Timer chatScreenTimer;
 
   String me;
   String friend;
@@ -44,14 +43,17 @@ class ChatScreenLogic {
   bool isDbMessagesLoaded = false;
   bool isServerMessagesLoaded = false;
 
-  // Функция для обновления состояния экрана
-  Function setStateCallback;
   ChatScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
-    chatScreenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
+    this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
       checkState();
       //Log.d(TAG, '${t.tick}');
     });
+  }
+
+  @override
+  String getTAG() {
+    return TAG;
   }
 
   /* Получение аргументов на вьюхе (пользователь) */
@@ -100,7 +102,8 @@ class ChatScreenLogic {
     /* Отправляем только с нулевым статусом,
        только если есть связь
     */
-    if (JabberConn.connection.state == xmpp.XmppConnectionState.Ready || JabberConn.connection.state == xmpp.XmppConnectionState.Resumed) {
+    if (JabberConn.connection?.state == xmpp.XmppConnectionState.Ready ||
+        JabberConn.connection?.state == xmpp.XmppConnectionState.Resumed) {
       for (ChatMessageModel msg in brokenMessages) {
         if (msg.sendState == SendStates.none.index) {
           JabberConn.messageHandler.sendMessage(buddy.jid, msg.msg,
@@ -111,7 +114,6 @@ class ChatScreenLogic {
     }
     return messages;
   }
-
 
   /* Достаем обычные сообщения из базы
      Достаем сломанные сообщения из базы
@@ -168,27 +170,28 @@ class ChatScreenLogic {
      чтобы не потереть пока он обновляется фоново
   */
   Future<void> insertMessage2DbIfNotExists(ChatMessageModel msg) async {
-    if (msg.code != null) {
-      ChatMessageModel analog = await ChatMessageModel.getAnalog(
-        parent: me,
-        code: msg.code,
-        pk: msg.id,
-        tuser: msg.tuser,
-        fuser: msg.fuser,
-      );
+    if (msg.code == null) {
+      return;
+    }
+    ChatMessageModel analog = await ChatMessageModel.getAnalog(
+      parent: me,
+      code: msg.code,
+      pk: msg.id,
+      tuser: msg.tuser,
+      fuser: msg.fuser,
+    );
 
-      if (analog == null) {
-        msg.id = null; // Обязательно, т/к скорее всего ид собеседника приехал
-        await msg.insert2Db();
-      } else if (analog != null && analog.code == null) {
-        // Обновляем ид у приехавщего сообщения
-        msg.id = analog.id;
-        await ChatMessageModel.updateCode(msg.id, msg.code);
-        if (msg.filePath != null && msg.urlType == 'image') {
-          File dest =
-              await SaveNetworkFile.getFileFromNetwork(msg.url, dbPK: msg.id);
-          ChatMessageModel.updateFilePath(analog.id, dest.path);
-        }
+    if (analog == null) {
+      msg.id = null; // Обязательно, т/к скорее всего ид собеседника приехал
+      await msg.insert2Db();
+    } else if (analog != null && analog.code == null) {
+      // Обновляем ид у приехавщего сообщения
+      msg.id = analog.id;
+      await ChatMessageModel.updateCode(msg.id, msg.code);
+      if (msg.filePath != null && msg.urlType == 'image') {
+        File dest =
+            await SaveNetworkFile.getFileFromNetwork(msg.url, dbPK: msg.id);
+        ChatMessageModel.updateFilePath(analog.id, dest.path);
       }
     }
   }
@@ -408,20 +411,15 @@ class ChatScreenLogic {
   }
 
   /* Проверяем состояние экрана авторизации на соответствие JabberConn состоянию */
+  @override
   Future<void> checkState() async {
     // Состояние не поменялось
     if (JabberConn.loggedIn == loggedIn && JabberConn.curUser == curUser) {
       return;
     }
     Log.w(TAG, 'STATE CHANGED');
+    // TODO: тут надо setState?
     loggedIn = JabberConn.loggedIn;
     curUser = JabberConn.curUser;
-/*
-    setStateCallback(
-      messageList,
-      loggedIn,
-    );
-
- */
   }
 }

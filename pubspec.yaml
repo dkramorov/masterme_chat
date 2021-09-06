@@ -1,0 +1,79 @@
+name: masterme_chat
+description: Chat app
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.20+20
+
+environment:
+  sdk: ">=2.7.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.2
+  font_awesome_flutter: ^9.1.0
+  #xmpp_stone: ^0.3.3
+  xmpp_stone:
+    path: xmpp_stone
+
+  #flutter_chat_ui: ^0.5.1
+  uuid: ^2.2.2
+  mime: ^0.9.7
+  http: ^0.12.2
+  bubble: ^1.2.1
+  modal_progress_hud: ^0.1.3
+  yaml: ^2.2.1
+  path_provider: ^1.6.28
+  dio: ^3.0.10 # не использовать для upload jabber - убивает ContentLength
+  package_info_plus: ^0.6.4
+  rxdart: ^0.25.0
+
+  sqflite: ^1.3.0
+  image_picker: ^0.6.7+22
+  open_file: ^3.0.3
+  file_picker: ^2.1.7
+  firebase_core: ^0.5.3
+  firebase_messaging: ^7.0.3
+  permission_handler: ^5.1.0+2
+  #audioplayers: ^0.17.4 # minSdk = 23 # качается всегда 0.17.4
+  audioplayers: ^0.16.2
+  record: ^1.0.3
+  video_player: ^1.0.1
+  flutter_local_notifications: ^4.0.1+2
+  flutter_webrtc: ^0.5.9
+  sip_ua: ^0.3.5
+  slide_to_act: ^0.1.3+1
+  all_sensors: ^0.3.1+2
+
+# По размеру приложения глянуть
+# https://flutter.dev/docs/perf/app-size
+# flutter build apk --analyze-size --split-debug-info
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/app_icons/appstore.png
+    - assets/app_icons/playstore.png
+    - assets/avatars/
+    - assets/loading/
+
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #

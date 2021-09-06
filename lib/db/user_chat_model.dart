@@ -8,6 +8,7 @@ class UserChatModel extends AbstractModel {
   int id; // null if we need new row
   String login;
   String passwd;
+  int lastLogin;
 
   static final String tableName = 'users_chat';
 
@@ -16,25 +17,32 @@ class UserChatModel extends AbstractModel {
     return UserChatModel.tableName;
   }
 
-  UserChatModel({this.id, this.login, this.passwd});
+  UserChatModel({this.id, this.login, this.passwd, this.lastLogin});
 
-  // Convert into a Map
-  // The keys must correspond to the names of the
-  // columns in the database
   @override
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'login': login,
       'passwd': passwd,
+      'lastLogin': lastLogin,
     };
   }
 
-  // Implement toString to make it easier to see information
+  /* Перегоняем данные из базы в модельку */
+  static UserChatModel toModel(Map<String, dynamic> dbItem) {
+    return UserChatModel(
+      id: dbItem['id'],
+      login: dbItem['login'],
+      passwd: dbItem['passwd'],
+      lastLogin: dbItem['lastLogin'],
+    );
+  }
+
   @override
   String toString() {
     final String table = getTableName();
-    return '$table{id: $id, login: $login, passwd: $passwd}';
+    return '$table{id: $id, login: $login, passwd: $passwd, lastLogin: $lastLogin}';
   }
 
   static Future<void> dropByLogin(String login) async {
@@ -47,6 +55,16 @@ class UserChatModel extends AbstractModel {
     Log.w('$tableName', 'dropByLogin = $dropped');
   }
 
+  // Сбросить всем флаг lastLogin
+  static Future<void> clearLastLogin() async {
+    final db = await openDB();
+    final updated = await db.update(
+      tableName,
+      {'lastLogin': 0},
+    );
+    Log.w('$tableName', 'clearLastLogin = $updated');
+  }
+
   static Future<UserChatModel> getByLogin(String userLogin) async {
     final db = await openDB();
     final List<Map<String, dynamic>> maps = await db.query(
@@ -54,12 +72,10 @@ class UserChatModel extends AbstractModel {
       where: 'login = ?',
       whereArgs: [userLogin],
     );
-
     if (maps.isEmpty) {
       return null;
     }
     final Map<String, dynamic> user = maps[0];
-    // Convert the List<Map<String, dynamic> into a List<UserChatModel>.
     return UserChatModel(
       id: user['id'],
       login: user['login'],
@@ -67,26 +83,46 @@ class UserChatModel extends AbstractModel {
     );
   }
 
-  // A method that retrieves all from the settings table.
   static Future<List<UserChatModel>> getAllUsers(
       {int limit, int offset}) async {
-    // Get a reference to the database.
     final db = await openDB();
-
-    // Query the table for all
     final List<Map<String, dynamic>> maps = await db.query(
       tableName,
       limit: limit,
       offset: offset,
     );
-
-    // Convert the List<Map<String, dynamic> into a List<SettingsModel>.
     return List.generate(maps.length, (i) {
-      return UserChatModel(
-        id: maps[i]['id'],
-        login: maps[i]['login'],
-        passwd: maps[i]['passwd'],
-      );
+      return toModel(maps[i]);
     });
+  }
+
+  static Future<UserChatModel> getLastLoginUser() async {
+    final db = await openDB();
+    final List<Map<String, dynamic>> users = await db.query(
+      tableName,
+      where: 'lastLogin = 1',
+    );
+    if (users.isNotEmpty) {
+      return toModel(users[0]);
+    }
+    return null;
+  }
+
+  // Воткнуть пользователя в базу или обновить
+  static Future<UserChatModel> insertLastLoginUser(String login, String passwd) async {
+    await UserChatModel.clearLastLogin();
+    String curLogin = login.replaceAll(RegExp('[^0-9]+'), '');
+    UserChatModel user = await UserChatModel.getByLogin(curLogin);
+    if (user == null) {
+      user = UserChatModel(
+        login: curLogin,
+        passwd: passwd,
+        lastLogin: 1,
+      );
+    } else {
+      user.lastLogin = 1;
+    }
+    await user.insert2Db();
+    return user;
   }
 }

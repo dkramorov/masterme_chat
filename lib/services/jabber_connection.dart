@@ -36,7 +36,7 @@ class JabberConn {
 
   static bool loggedIn = false;
   static UserChatModel curUser;
-  static List<ContactChatModel> contactsList;
+  static List<ContactChatModel> contactsList = [];
 
   static healthcheck() {
     healthCheckTimer = Timer.periodic(Duration(seconds: 3), (Timer t) async {
@@ -47,13 +47,13 @@ class JabberConn {
               ? true
               : false;
       final connectionState = connection?.state;
-
       Log.i(
           TAG,
           '${t.tick} instance: ${instanceKey}, ' +
               'acc:${restoreAccount?.username}, ' +
               'cstate:$connectionState, ' +
               'rmanger:$reconnectionManagerActive');
+
       // Если менеджер закончил переподключаться,
       // надо дропать имеющееся, оно уже не переподключиться,
       // из-за таймаута сессии на сервере
@@ -129,7 +129,7 @@ class JabberConn {
 
   /* Очистить соединения */
   static void clear() {
-    contactsList = null;
+    contactsList = [];
     curUser = null;
     loggedIn = false;
     receiver = null;
@@ -188,6 +188,85 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
     _connection.connectionStateStream.listen(onConnectionStateChanged);
   }
 
+  /* Обрабатываем пуш сообщение,
+     добавляем контакт в список если такого контакта нет,
+     чтобы отобразить его в ростере
+  */
+  static void checkContactInRosterFromPush(Map<String, dynamic> message) {
+    print('checkContactInRosterFromPush: $message');
+  }
+
+  /* Обрабатываем входящее сообщение,
+     добавляем контакт в список если такого контакта нет,
+     чтобы отобразить его в ростере
+  */
+  static Future<void> checkContactInRoster(xmpp.Message curMessage) async {
+    // Ошибку не обрабатываем
+    if (curMessage.type == xmpp.MessageStanzaType.ERROR) {
+      return null;
+    }
+    xmpp.Buddy buddy;
+    String friend;
+    final String me = JabberConn.connection?.fullJid?.userAtDomain;
+    ContactChatModel contact; // Кого обновляем в ростер его
+    // Находим себя
+    if (me == null) {
+      Log.e('[ERROR]: checkContactInRoster', 'me is null');
+      return;
+    }
+    // Находим собеседника
+    if (curMessage.from.userAtDomain == me) {
+      friend = curMessage.to.userAtDomain;
+    } else if (curMessage.to.userAtDomain == me) {
+      friend = curMessage.from.userAtDomain;
+    }
+    if (friend == null){
+      Log.e('[ERROR]: checkContactInRoster', 'friend not found');
+      return;
+    }
+    // Проверяем, что собеседник в контактах
+    for (ContactChatModel itemInContactsList in JabberConn.contactsList) {
+      if (itemInContactsList.buddy.jid.userAtDomain == friend) {
+        contact = itemInContactsList;
+      }
+    }
+    String msgText = '';
+    if (curMessage.urlType == null) {
+      msgText = curMessage.text;
+    } else if (curMessage.urlType == 'file') {
+      msgText = 'Отправлен файл';
+    } else if (curMessage.urlType == 'image') {
+      msgText = 'Отправлено изображение';
+    } else if (curMessage.urlType == 'video') {
+      msgText = 'Отправлен видео-файл';
+    } else if (curMessage.urlType == 'audio') {
+      msgText = 'Отправлен аудио-файл';
+    }
+    // Создаем или обновляем собеседника
+    if (contact == null) {
+      // Отправить запрос на добавление в ростер
+      var newUserJid = xmpp.Jid.fromFullJid(curMessage.from.userAtDomain);
+      buddy = xmpp.Buddy(newUserJid);
+      JabberConn.rosterManager.addRosterItem(buddy);
+
+      contact = ContactChatModel(
+        name: curMessage.from.local,
+        login: curMessage.from.userAtDomain,
+        parent: me,
+        time: curMessage.time.toIso8601String(),
+        msg: curMessage.text,
+      );
+      JabberConn.contactsList.add(contact);
+    } else {
+      contact.time = curMessage.time.toIso8601String();
+      contact.msg = curMessage.text;
+      buddy = contact.buddy;
+    }
+    // Заставлем rosterManager выплюнуть событие с пользователем
+    await contact.insert2Db();
+    JabberConn.rosterManager.produceNewUser(buddy);
+  }
+
   @override
   void onConnectionStateChanged(xmpp.XmppConnectionState state) {
     if (state != xmpp.XmppConnectionState.Closed &&
@@ -213,6 +292,7 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
         JabberConn.messageHandler.messagesStream
             .listen((xmpp.MessageStanza message) {
           xmpp.Message curMessage = xmpp.Message.fromStanza(message);
+          checkContactInRoster(curMessage);
           JabberConn.messagesStreamController.add(curMessage);
         });
         JabberConn.connection.reconnectionManager.counter = 0;

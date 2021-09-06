@@ -23,7 +23,7 @@ class VideoMessageWidget extends StatelessWidget {
           PageRouteBuilder(
             opaque: false,
             pageBuilder: (BuildContext context, _, __) {
-              return FullScreenPage(
+              return VideoFullScreenPage(
                 url: url,
                 fname: fname,
                 file: file,
@@ -55,13 +55,13 @@ class VideoMessageWidget extends StatelessWidget {
   }
 }
 
-class FullScreenPage extends StatefulWidget {
+class VideoFullScreenPage extends StatefulWidget {
   final String url;
   final String fname;
   final bool dark;
   final File file;
 
-  FullScreenPage({
+  VideoFullScreenPage({
     this.url,
     this.fname,
     this.dark = true,
@@ -69,10 +69,10 @@ class FullScreenPage extends StatefulWidget {
   });
 
   @override
-  _FullScreenPageState createState() => _FullScreenPageState();
+  _VideoFullScreenPageState createState() => _VideoFullScreenPageState();
 }
 
-class _FullScreenPageState extends State<FullScreenPage> {
+class _VideoFullScreenPageState extends State<VideoFullScreenPage> {
   VideoPlayerController _controller;
 
   @override

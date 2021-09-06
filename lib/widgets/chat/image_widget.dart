@@ -20,7 +20,7 @@ class ImageMessageWidget extends StatelessWidget {
             opaque: false,
             barrierColor: dark ? Colors.black : Colors.white,
             pageBuilder: (BuildContext context, _, __) {
-              return FullScreenPage(
+              return ImageFullScreenPage(
                 child: child,
                 dark: dark,
               );
@@ -33,20 +33,20 @@ class ImageMessageWidget extends StatelessWidget {
   }
 }
 
-class FullScreenPage extends StatefulWidget {
+class ImageFullScreenPage extends StatefulWidget {
   final Widget child;
   final bool dark;
 
-  FullScreenPage({
+  ImageFullScreenPage({
     this.child,
     this.dark,
   });
 
   @override
-  _FullScreenPageState createState() => _FullScreenPageState();
+  _ImageFullScreenPageState createState() => _ImageFullScreenPageState();
 }
 
-class _FullScreenPageState extends State<FullScreenPage> {
+class _ImageFullScreenPageState extends State<ImageFullScreenPage> {
   @override
   void initState() {
     var brightness = widget.dark ? Brightness.light : Brightness.dark;

@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:masterme_chat/db/chat_message_model.dart';
+import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class SaveNetworkFile {
   static String TAG = 'SaveNetworkFile';
-  static String APP_FOLDER = '8800help';
+
+  static Future<void> makeAppFolder() async {
+
+  }
 
   static Future<File> getFileFromNetwork(String url,
       {int dbPK, String type = 'chat'}) async {

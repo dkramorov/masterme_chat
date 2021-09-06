@@ -6,7 +6,6 @@ import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 
 import 'package:masterme_chat/services/jabber_connection.dart';
-import 'package:masterme_chat/widgets/chat/chat_header.dart';
 import 'package:masterme_chat/widgets/chat/input_widget.dart';
 import 'package:masterme_chat/widgets/chat/list_widget.dart';
 import 'package:masterme_chat/widgets/chat/message_widget.dart';
@@ -44,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
   String uploadImagePath;
   String uploadVideoPath;
   String uploadFilePath;
+  String uploadAudioPath;
 
   List<Message> _messageList = [];
 
@@ -57,6 +57,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void setUploadFilePath(String path) {
     uploadFilePath = path;
+  }
+
+  void setUploadAudioPath(String path) {
+    uploadAudioPath = path;
   }
 
   @override
@@ -113,6 +117,11 @@ class _ChatScreenState extends State<ChatScreen> {
       fname = uploadImagePath.split('/').last;
       file = File(uploadImagePath);
       urlType = 'image';
+    } else if (uploadAudioPath != null &&
+        lastUrlPart == uploadAudioPath.split('/').last) {
+      fname = uploadAudioPath.split('/').last;
+      file = File(uploadAudioPath);
+      urlType = 'audio';
     } else if (uploadVideoPath != null &&
         lastUrlPart == uploadVideoPath.split('/').last) {
       fname = uploadVideoPath.split('/').last;
@@ -258,12 +267,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        flexibleSpace: SafeArea(
-          child: ChatHeaderWidget(
-            name: logic.username,
-            image: logic.image,
-          ),
+        title: Text(
+          'Звонок',
         ),
       ),
       body: Stack(
@@ -284,6 +289,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPickImage: setUploadImagePath,
                   onPickFile: setUploadFilePath,
                   onPickVideo: setUploadVideoPath,
+                  onPickAudio: setUploadAudioPath,
                   login: logic.me,
                   tuser: logic.friend,
                 ),

@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 
 import 'package:masterme_chat/helpers/phone_mask.dart';
+import 'package:masterme_chat/screens/home.dart';
 import 'package:masterme_chat/widgets/rounded_button_widget.dart';
 import 'package:masterme_chat/widgets/rounded_input_text.dart';
 import 'package:masterme_chat/constants.dart';
@@ -19,9 +22,10 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   static const String TAG = 'RegistrationScreen';
 
+  String pageType = 'reg'; // Регистрация или восстановление пароля
   bool loading = false;
   int state = 0; // регистрация
-  String login = ''; // protect from null
+  String login = '8'; // protect from null
   String passwd = ''; // protect from null
   String confirmCode = '';
   final GlobalKey<FormState> _regFormKey = GlobalKey<FormState>();
@@ -39,6 +43,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     });
   }
 
+  /* Регистрация пройдена или
+     паролька изменена,
+     записываем пользователя
+     переходим на главную
+   */
+  Future<void> userConfirmed() async {
+    closeHUD();
+    await UserChatModel.insertLastLoginUser(login, passwd);
+    Navigator.popUntil(context, ModalRoute.withName(HomeScreen.id));
+  }
+
   /* Отправка формы кода подтверждения
    */
   Future<void> regConfirmCodeFormSubmit() async {
@@ -49,14 +64,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     openHUD();
     state = 2;
-    final confirm = await RegistrationModel.confirmRegistration(login, confirmCode);
-    if (confirm != null) {
-      if (confirm.result != null && confirm.result is String) {
-        final msg = confirm.result.replaceAll('@$JABBER_SERVER', '');
-        openInfoDialog(context, closeHUD, 'Результат регистрации',
-            msg, 'Понятно');
-        //Navigator.popUntil(context, ModalRoute.withName('/'));
+    final confirm =
+        await RegistrationModel.confirmRegistration(login, confirmCode);
+    if (confirm != null && confirm.message != null) {
+      if(confirm.code == RegistrationModel.CODE_PASSWD_CHANGED) {
+        openInfoDialog(context, userConfirmed, 'Ответ от сервера',
+            confirm.message, 'Понятно');
+          return;
+      } else if(confirm.code == RegistrationModel.CODE_REGISTRATION_SUCCESS) {
+        openInfoDialog(context, userConfirmed, 'Ответ от сервера',
+            confirm.message, 'Понятно');
+        return;
       }
+
     }
     closeHUD();
   }
@@ -70,12 +90,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _regFormKey.currentState.save();
 
     openHUD();
-    final RegistrationModel reg = await RegistrationModel.requestRegistration(login, passwd);
+    final RegistrationModel reg =
+        await RegistrationModel.requestRegistration(login, passwd);
     if (reg != null && reg.id != null) {
       state = 1;
     } else {
-      openInfoDialog(context, closeHUD, 'Ошибка регистрации',
-          'Не получен ответ от сервера, пожалуйста, попробуйте поздже', 'Понятно');
+      openInfoDialog(
+          context,
+          closeHUD,
+          'Ошибка регистрации',
+          'Не получен ответ от сервера, пожалуйста, попробуйте поздже',
+          'Понятно');
     }
     Log.i(TAG, 'reg: ${reg.toString()}');
     closeHUD();
@@ -88,7 +113,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('На ваш номер $login должен поступить звонок, прослушайте код подтверждения и введите в поле ниже'),
+          Text(
+              'На ваш номер $login должен поступить звонок, прослушайте код подтверждения и введите в поле ниже'),
           SizedBox(
             height: 15.0,
           ),
@@ -100,8 +126,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               });
             },
             validator: (String value) {
-              bool match =
-              RegExp(r'^[0-9]{4}$').hasMatch(value);
+              bool match = RegExp(r'^[0-9]{4}$').hasMatch(value);
               if (value.isEmpty || !match) {
                 return 'Код подтверждения';
               }
@@ -137,7 +162,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('На ваш номер поступит звонок, прослушайте код, после завершения звонка его надо будет ввести в форму'),
+          Text(
+              'На ваш номер поступит звонок, прослушайте код, после завершения звонка его надо будет ввести в форму'),
           SizedBox(
             height: 15.0,
           ),
@@ -151,19 +177,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             formatters: [PhoneFormatter()],
             validator: (String value) {
               bool match =
-              RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$').hasMatch(value);
+                  RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
+                      .hasMatch(value);
               if (value.isEmpty || !match) {
                 return 'Ваш телефон';
               }
             },
             keyboardType: TextInputType.number,
-            defaultValue: '8',
+            defaultValue: login,
           ),
           SizedBox(
             height: 15.0,
           ),
           RoundedInputText(
-            hint: 'Ваш пароль',
+            hint: pageType == 'reg' ? 'Ваш пароль' : 'Новый пароль',
             onChanged: (String text) {
               setState(() {
                 passwd = text;
@@ -199,10 +226,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Аргументы доступны только после получения контекста
+    final arguments = ModalRoute.of(context).settings.arguments as Map;
+    if (arguments != null) {
+      pageType = arguments['type'];
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Регистрация',
+          pageType == 'reg' ? 'Регистрация' : 'Сменить пароль',
         ),
       ),
       body: ModalProgressHUD(
@@ -232,7 +265,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
                   ),
                   Text(
-                    'Регистрация',
+                    pageType == 'reg' ? 'Регистрация' : 'Сменить пароль',
                     style: SUBTITLE_STYLE,
                   ),
                 ],

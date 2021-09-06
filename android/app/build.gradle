@@ -36,7 +36,9 @@ android {
     defaultConfig {
         // unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "ru.masterme.chat.masterme_chat"
-        minSdkVersion 16
+        minSdkVersion 23
+        // with 30 => AAPT: error: resource android:attr/lStar not found.
+        // try with 31
         targetSdkVersion 30
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

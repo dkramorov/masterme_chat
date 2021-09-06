@@ -112,7 +112,7 @@ Future<Database> openDB() async {
 
   final String alterTableTestNewToTest = 'ALTER TABLE test_new RENAME TO test';
   final String createTableSettings = 'CREATE TABLE IF NOT EXISTS ${SettingsModel.tableName}(id INTEGER PRIMARY KEY, attr TEXT, key TEXT, value TEXT)';
-  final String createTableUsers = 'CREATE TABLE IF NOT EXISTS ${UserChatModel.tableName}(id INTEGER PRIMARY KEY, login TEXT, passwd TEXT)';
+  final String createTableUsers = 'CREATE TABLE IF NOT EXISTS ${UserChatModel.tableName}(id INTEGER PRIMARY KEY, login TEXT, passwd TEXT, lastLogin int)';
   final String createTableContacts = 'CREATE TABLE IF NOT EXISTS ${ContactChatModel.tableName}(id INTEGER PRIMARY KEY, login TEXT, name TEXT, avatar TEXT, status TEXT, parent TEXT, time TEXT, msg TEXT)';
   final String createTableChatMessages = 'CREATE TABLE IF NOT EXISTS ${ChatMessageModel.tableName}(id INTEGER PRIMARY KEY, fuser TEXT, tuser TEXT, code int, type TEXT, parent TEXT, time TEXT, msg TEXT, url TEXT, urlType TEXT, filePath TEXT, sendState int)';
   final String createTableChatDraft = 'CREATE TABLE IF NOT EXISTS ${ChatDraftModel.tableName}(id INTEGER PRIMARY KEY, login TEXT, tuser TEXT, msg TEXT)';
@@ -125,6 +125,7 @@ Future<Database> openDB() async {
 
   final String alterTableChatMessagesAddFilePath = 'ALTER TABLE ${ChatMessageModel.tableName} add filePath TEXT';
   final String alterTableChatMessagesAddSendState = 'ALTER TABLE ${ChatMessageModel.tableName} add sendState int';
+  final String alterTableUserChatAddLastLogin = 'ALTER TABLE ${UserChatModel.tableName} add lastLogin int';
 
   void createTables(Database db) {
     db.execute(createTableTest);
@@ -156,6 +157,9 @@ Future<Database> openDB() async {
       }
       if (oldVersion <= 16) {
         db.execute(alterTableChatMessagesAddSendState);
+      }
+      if (oldVersion <= 17) {
+        db.execute(alterTableUserChatAddLastLogin);
       }
     },
     // Set the version. This executes the onCreate function and provides a

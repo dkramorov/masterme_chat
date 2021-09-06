@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:masterme_chat/helpers/log.dart';
+
 import 'database_singletone.dart';
 
 // xmpp
@@ -13,6 +16,8 @@ class ContactChatModel extends AbstractModel {
   String parent; // UserChatModel login
   String time;
   String msg;
+
+  Key key;
 
   xmpp.Buddy buddy;
 
@@ -37,9 +42,6 @@ class ContactChatModel extends AbstractModel {
     this.buddy = xmpp.Buddy(jid);
   }
 
-  // Convert into a Map
-  // The keys must correspond to the names of the
-  // columns in the database
   @override
   Map<String, dynamic> toMap() {
     return {
@@ -54,7 +56,20 @@ class ContactChatModel extends AbstractModel {
     };
   }
 
-  // Implement toString to make it easier to see information
+  /* Перегоняем данные из базы в модельку */
+  static ContactChatModel toModel(Map<String, dynamic> dbItem) {
+    return ContactChatModel(
+      id: dbItem['id'],
+      login: dbItem['login'],
+      name: dbItem['name'],
+      avatar: dbItem['avatar'],
+      status: dbItem['status'],
+      parent: dbItem['parent'],
+      time: dbItem['time'],
+      msg: dbItem['msg'],
+    );
+  }
+
   @override
   String toString() {
     final String table = getTableName();
@@ -71,21 +86,26 @@ class ContactChatModel extends AbstractModel {
       whereArgs: [parent],
     );
 
-    // Convert the List<Map<String, dynamic> into a List<ContactChatModel>.
     return List.generate(maps.length, (i) {
-      return ContactChatModel(
-        id: maps[i]['id'],
-        login: maps[i]['login'],
-        name: maps[i]['name'],
-        avatar: maps[i]['avatar'],
-        status: maps[i]['status'],
-        parent: maps[i]['parent'],
-        time: maps[i]['time'],
-        msg: maps[i]['msg'],
-      );
+      return toModel(maps[i]);
     });
   }
 
+  /* Обновляем выборочные поля контакта */
+  static Future<void> updateContact(int pk, Map<String, dynamic> values) async {
+    if (pk == null) {
+      Log.e('[ERROR]: updateContact', 'pk is null');
+      return;
+    }
+    Log.d('updateContact pk=$pk', '${values.toString()}');
+    final db = await openDB();
+    int updated = await db.update(
+      tableName,
+      values,
+      where: 'id = ?',
+      whereArgs: [pk],
+    );
+  }
 
   /* Получение сообщения по коду */
   static Future<ContactChatModel> getByLogin(String parent, String login) async {
@@ -101,16 +121,6 @@ class ContactChatModel extends AbstractModel {
       return null;
     }
     final Map<String, dynamic> user = users[0];
-    // Convert the List<Map<String, dynamic> into a List<ContactChatModel>.
-    return ContactChatModel(
-      id: user['id'],
-      login: user['login'],
-      name: user['name'],
-      avatar: user['avatar'],
-      status: user['status'],
-      parent: user['parent'],
-      time: user['time'],
-      msg: user['msg'],
-    );
+    return toModel(user);
   }
 }

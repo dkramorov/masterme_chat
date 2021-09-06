@@ -1,12 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:masterme_chat/db/chat_draft_model.dart';
-import 'package:masterme_chat/helpers/dialogs.dart';
-import 'package:masterme_chat/services/jabber_connection.dart';
+import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/widgets/chat/logic/input_logic.dart';
+import 'package:masterme_chat/widgets/chat/record_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class ChatInputWidget extends StatefulWidget {
@@ -14,6 +12,7 @@ class ChatInputWidget extends StatefulWidget {
   final Function onPickImage;
   final Function onPickVideo;
   final Function onPickFile;
+  final Function onPickAudio;
 
   final String login;
   final String tuser;
@@ -23,6 +22,7 @@ class ChatInputWidget extends StatefulWidget {
     this.onPickImage,
     this.onPickFile,
     this.onPickVideo,
+    this.onPickAudio,
     this.login,
     this.tuser,
   });
@@ -32,9 +32,11 @@ class ChatInputWidget extends StatefulWidget {
 }
 
 class _ChatInputWidgetState extends State<ChatInputWidget> {
+  final String TAG = 'ChatInputWidget';
   final TextEditingController _textController = TextEditingController();
   String msg;
   bool _sendButtonVisible = false;
+  bool _sendAudioRecordVisible = false;
   bool _loading = false;
 
   /* Переменные для modalBottomSheet */
@@ -66,118 +68,20 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     }
   }
 
-  void permissionsErrorDialog(String permDesc) {
-    // Пока глушим диалог, а то хрен опубликуешь
-    // TODO: обыграть по-другому
-    if (Platform.isIOS) {
-      return;
-    }
-    openInfoDialog(context, () {
-      openAppSettings();
-    },
-        'Нет доступа к $permDesc',
-        'Вы не дали разрешение на использование $permDesc.\n' +
-            'Пожалуйста, добавьте разрешение в настройках.\n' +
-            'Сейчас мы откроем настройки приложения',
-        'Понятно');
-  }
-
   void sendButtonVisibility() {
     setState(() {
       _sendButtonVisible = msg.trim().isEmpty ? false : true;
     });
   }
 
-  void _handleImageSelection({ImageSource source = ImageSource.gallery}) async {
-    /* Загрузка изображения */
-    PickedFile result;
-    try {
-      result = await ImagePicker().getImage(
-        source: source,
-      );
-    } catch (err) {
-      permissionsErrorDialog('фото');
-      return;
-    }
-
-    if (result != null) {
-      final imageName = result.path.split('/').last;
-      final bytes = await result.readAsBytes();
-      final size = bytes.length;
-      /*
-      final image = await decodeImageFromList(bytes);
-      final uri = result.path;
-      final width = image.width.toDouble();
-      final height = image.height.toDouble();
-       */
-      setState(() {
-        _loading = true;
-      });
-      JabberConn.fileUploadManager.queryRequestSlot(imageName, size);
-      await widget.onPickImage(result.path);
-      setState(() {
-        _loading = false;
-      });
-    } else {
-      // User canceled the picker
-    }
+  /* Показываем виджет с аудио записью */
+  void showAudioRecordWidget() {
+    setState(() {
+      _sendAudioRecordVisible = true;
+    });
   }
 
-  void _handleVideoSelection({ImageSource source = ImageSource.gallery}) async {
-    /* Загрузка видео файла */
-    PickedFile result;
-    try {
-      result = await ImagePicker().getVideo(
-        source: source,
-      );
-    } catch (err) {
-      permissionsErrorDialog('видео');
-      return;
-    }
-
-    if (result != null) {
-      final videoName = result.path.split('/').last;
-      final bytes = await result.readAsBytes();
-      final size = bytes.length;
-
-      setState(() {
-        _loading = true;
-      });
-      JabberConn.fileUploadManager.queryRequestSlot(videoName, size);
-      await widget.onPickVideo(result.path);
-      setState(() {
-        _loading = false;
-      });
-    } else {
-      // User canceled the picker
-    }
-  }
-
-  void _handleFileSelection() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
-
-    if (result != null) {
-      final fileName = result.files.single.name;
-      final size = result.files.single.size;
-      final path = result.files.single.path ?? '';
-
-      JabberConn.fileUploadManager.queryRequestSlot(fileName, size);
-      await widget.onPickFile(path);
-      setState(() {
-        _loading = false;
-      });
-    } else {
-      // User canceled the picker
-    }
-  }
-
-  void _handleAudioSelection() async {
-    /* Отправка голосового сообщения */
-  }
-
-  void _handleAtachmentPressed() {
+  void _handleAtachmentPressed(InputWidgetLogic logic) {
     showModalBottomSheet<void>(
       context: context,
       builder: (BuildContext context) {
@@ -203,7 +107,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      _handleImageSelection();
+                      logic.handleImageSelection();
                     },
                     label: Text(
                       'Фото',
@@ -216,23 +120,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      _handleVideoSelection();
+                      logic.handleVideoSelection();
                     },
                     label: Text(
                       'Видео',
-                      style: textStyle,
-                    ),
-                  ),
-                  TextButton.icon(
-                    icon: Icon(
-                      Icons.mic_none_outlined,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _handleAudioSelection();
-                    },
-                    label: Text(
-                      'Аудио-сообщение',
                       style: textStyle,
                     ),
                   ),
@@ -242,7 +133,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      _handleFileSelection();
+                      logic.handleFileSelection();
                     },
                     label: Text(
                       'Файл',
@@ -255,7 +146,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      _handleImageSelection(source: ImageSource.camera);
+                      logic.handleImageSelection(source: ImageSource.camera);
                     },
                     label: Text(
                       'Фото с камеры',
@@ -268,7 +159,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      _handleVideoSelection(source: ImageSource.camera);
+                      logic.handleVideoSelection(source: ImageSource.camera);
                     },
                     label: Text(
                       'Видео с камеры',
@@ -294,8 +185,180 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     );
   }
 
+  /* Загрузчик, вместо выбора файлов */
+  Widget buildLoading() {
+    if (_sendAudioRecordVisible) {
+      return Container();
+    }
+    return Visibility(
+      visible: _loading,
+      child: Container(
+        height: 24,
+        width: 24,
+        child: const CircularProgressIndicator(
+          backgroundColor: Colors.transparent,
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(
+            //Color(0xffffffff),
+            Colors.black54,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /* Кнопка выбора медиа файлов */
+  Widget buildMediaPicker(InputWidgetLogic logic) {
+    if (_sendAudioRecordVisible) {
+      return Container();
+    }
+    return Visibility(
+      visible: !_loading,
+      child: SizedBox(
+        child: IconButton(
+          color: Colors.black54,
+          padding: EdgeInsets.zero,
+          icon: Icon(
+            Icons.attach_file,
+            size: 28.0,
+          ),
+          onPressed: () {
+            _handleAtachmentPressed(logic);
+          },
+        ),
+      ),
+    );
+  }
+
+
+  /* Блок для ввода текста сообщения,
+     либо контроль записи аудио-файла
+  */
+  Widget buildInputText(InputWidgetLogic logic) {
+    if (_sendAudioRecordVisible) {
+      return Expanded(
+        child: RecordWidget(handleAudioSelection: logic.handleAudioSelection),
+      );
+    }
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: TextField(
+          controller: _textController,
+          decoration: const InputDecoration.collapsed(
+            hintStyle: TextStyle(
+              //color: Color(0x80ffffff),
+              color: Colors.black54,
+            ),
+            hintText: 'Ваше сообщение...',
+          ),
+          keyboardType: TextInputType.multiline,
+          maxLines: 5,
+          minLines: 1,
+          style: const TextStyle(
+            //color: Color(0xffffffff),
+            color: Colors.black,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (value) {
+            msg = value;
+            sendButtonVisibility();
+          },
+        ),
+      ),
+    );
+  }
+
+  /* Запрос прав на запись аудио */
+  Future<void> requestAudioPerms() async {
+    final storagePerms = await Permission.microphone.status;
+    Log.i(TAG, 'microphone perms status $storagePerms');
+    if (!storagePerms.isGranted) {
+      if (await Permission.microphone.isPermanentlyDenied) {
+        openAppSettings();
+      } else {
+        await [
+          Permission.microphone,
+        ].request();
+      }
+    }
+  }
+
+  /* Кнопка записи аудио */
+  Widget buildAudioRecordButton() {
+    if (_sendAudioRecordVisible || _sendButtonVisible) {
+      return Container();
+    }
+    return Visibility(
+      visible: !_loading,
+      child: SizedBox(
+        child: IconButton(
+          color: Colors.black54,
+          padding: EdgeInsets.zero,
+          icon: Icon(
+            Icons.mic_outlined,
+            size: 28.0,
+          ),
+          onPressed: () {
+            setState(() {
+              requestAudioPerms();
+              _sendAudioRecordVisible = true;
+            });;
+          },
+        ),
+      ),
+    );
+  }
+
+  /* Кнопка отправки сообщения */
+  Widget buildSendButton() {
+    if (_sendAudioRecordVisible) {
+      return SizedBox(
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          color: Colors.black54,
+          icon: Icon(
+            Icons.cancel,
+          ),
+          onPressed: () {
+            setState(() {
+              _sendAudioRecordVisible = false;
+            });
+          },
+        ),
+      );
+    }
+    return Visibility(
+      visible: _sendButtonVisible,
+      child: SizedBox(
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          color: Colors.black54,
+          icon: FaIcon(
+            FontAwesomeIcons.paperPlane,
+          ),
+          onPressed: () {
+            widget.onSend(msg.trim());
+            _textController.clear();
+            msg = '';
+            sendButtonVisibility();
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Логика на виджет
+    InputWidgetLogic logic = InputWidgetLogic(
+      context: context,
+      onPickFile: widget.onPickFile,
+      onPickImage: widget.onPickImage,
+      onPickVideo: widget.onPickVideo,
+      onPickAudio: widget.onPickAudio,
+    );
+
     final _query = MediaQuery.of(context);
 
     return Material(
@@ -312,82 +375,11 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         ),
         child: Row(
           children: [
-            Visibility(
-              visible: _loading,
-              child: Container(
-                height: 24,
-                width: 24,
-                child: const CircularProgressIndicator(
-                  backgroundColor: Colors.transparent,
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    //Color(0xffffffff),
-                    Colors.black54,
-                  ),
-                ),
-              ),
-            ),
-            Visibility(
-              visible: !_loading,
-              child: SizedBox(
-                child: IconButton(
-                  color: Colors.black54,
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    Icons.attach_file,
-                    size: 28.0,
-                  ),
-                  onPressed: () {
-                    _handleAtachmentPressed();
-                  },
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextField(
-                  controller: _textController,
-                  decoration: const InputDecoration.collapsed(
-                    hintStyle: TextStyle(
-                      //color: Color(0x80ffffff),
-                      color: Colors.black54,
-                    ),
-                    hintText: 'Ваше сообщение...',
-                  ),
-                  keyboardType: TextInputType.multiline,
-                  maxLines: 5,
-                  minLines: 1,
-                  style: const TextStyle(
-                    //color: Color(0xffffffff),
-                    color: Colors.black,
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: (value) {
-                    msg = value;
-                    sendButtonVisibility();
-                  },
-                ),
-              ),
-            ),
-            Visibility(
-              visible: _sendButtonVisible,
-              child: SizedBox(
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  color: Colors.black54,
-                  icon: FaIcon(
-                    FontAwesomeIcons.paperPlane,
-                  ),
-                  onPressed: () {
-                    widget.onSend(msg.trim());
-                    _textController.clear();
-                    msg = '';
-                    sendButtonVisibility();
-                  },
-                ),
-              ),
-            ),
+            buildLoading(),
+            buildMediaPicker(logic),
+            buildInputText(logic),
+            buildAudioRecordButton(),
+            buildSendButton(),
           ],
         ),
       ),

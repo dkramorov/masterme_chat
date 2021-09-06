@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
+import 'package:masterme_chat/screens/call.dart';
 
 import 'package:masterme_chat/screens/login.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/screens/registration.dart';
-import 'package:masterme_chat/screens/settings.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/services/push_manager.dart';
 import 'package:masterme_chat/widgets/rounded_button_widget.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:rxdart/subjects.dart';
 
 class HomeScreen extends StatefulWidget {
   // Обязательно '/' без него завалится все нахер
@@ -20,7 +21,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
+
   String appVersion = '';
+  String title = 'Приветствуем';
+  bool test = false;
 
   @override
   void setState(fn) {
@@ -55,10 +59,11 @@ class _HomeScreenState extends State<HomeScreen>
     if (JabberConn.connection != null && JabberConn.connection.authenticated) {
       return;
     }
-    List<UserChatModel> users = await UserChatModel.getAllUsers(limit: 1);
+    UserChatModel user = await UserChatModel.getLastLoginUser();
     // Если мы нашли юзера и мы на этой страничке
-    if(ModalRoute.of(context).isCurrent) {
-      Navigator.pushNamed(context, LoginScreen.id);
+    if(user != null && ModalRoute.of(context).isCurrent) {
+      // Пока убираем переход на авторизацию в чат
+      //Navigator.pushNamed(context, LoginScreen.id);
     }
   }
 
@@ -73,11 +78,20 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    /*
+    final arguments = ModalRoute.of(context).settings.arguments as Map;
+    if (arguments != null && !test) {
+      test = true;
+      setState(() {
+        title = arguments.toString();
+      });
+    }
+     */
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Приветствуем',
+          title,
         ),
       ),
       body: Padding(
@@ -100,16 +114,6 @@ class _HomeScreenState extends State<HomeScreen>
                         size: LOGO_SIZE,
                         color: Colors.green,
                       ),
-                      /*
-                      Hero(
-                        tag: LOGO_ICON_TAG,
-                        child: Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: animController.value,
-                          color: Colors.green,
-                        ),
-                      ),
-                       */
                       SizedBox(
                         width: 15.0,
                       ),
@@ -124,6 +128,19 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       SizedBox(
                         height: 35.0,
+                      ),
+                      RoundedButtonWidget(
+                        text: Text(
+                          'Бесплатные звонки',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        color: Colors.green[500],
+                        onPressed: () {
+                          Navigator.pushNamed(context, CallScreen.id);
+                        },
+                      ),
+                      SizedBox(
+                        height: 15.0,
                       ),
                       RoundedButtonWidget(
                         text: Text(
@@ -145,9 +162,27 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         color: Colors.green[500],
                         onPressed: () {
-                          Navigator.pushNamed(context, RegistrationScreen.id);
+                          Navigator.pushNamed(context, RegistrationScreen.id, arguments: {
+                          'type': 'reg',
+                          });
                         },
                       ),
+                      SizedBox(
+                        height: 15.0,
+                      ),
+                      RoundedButtonWidget(
+                        text: Text(
+                          'Сменить пароль',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        color: Colors.green[500],
+                        onPressed: () {
+                          Navigator.pushNamed(context, RegistrationScreen.id, arguments: {
+                            'type': 'reset_passwd',
+                          });
+                        },
+                      ),
+                      /*
                       SizedBox(
                         height: 15.0,
                       ),
@@ -161,6 +196,7 @@ class _HomeScreenState extends State<HomeScreen>
                           Navigator.pushNamed(context, SettingsScreen.id);
                         },
                       ),
+                       */
                     ],
                   ),
                 ],

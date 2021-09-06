@@ -44,3 +44,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+key.properties
+
+/web/*
+/test/*
+pubspec.lock
+/macos/*
+/ios/*
+/.metadata
+/README.md
+
+# А то там конфиденциальные данные
+#/lib/constants.dart

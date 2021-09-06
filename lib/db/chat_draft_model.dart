@@ -21,9 +21,6 @@ class ChatDraftModel extends AbstractModel {
     this.msg,
   });
 
-  // Convert into a Map
-  // The keys must correspond to the names of the
-  // columns in the database
   @override
   Map<String, dynamic> toMap() {
     return {
@@ -34,7 +31,6 @@ class ChatDraftModel extends AbstractModel {
     };
   }
 
-  // Implement toString to make it easier to see information
   @override
   String toString() {
     final String table = getTableName();
@@ -65,14 +61,11 @@ class ChatDraftModel extends AbstractModel {
 
   /* Получение сообщения по логину UserChatModel */
   static Future<ChatDraftModel> getDraft(String login, String tuser) async {
-    // Get a reference to the database.
     final db = await openDB();
 
-    // Query the table for all
     final List<Map<String, dynamic>> maps = await db.query(
       tableName,
       where: 'login = ? and tuser = ?',
-      // Pass id as a whereArg to prevent SQL injection.
       whereArgs: [login, tuser],
     );
 
@@ -80,7 +73,6 @@ class ChatDraftModel extends AbstractModel {
       return null;
     }
     final Map<String, dynamic> draft = maps[0];
-    // Convert the List<Map<String, dynamic> into a List<ChatMessageModel>.
     return ChatDraftModel(
       id: draft['id'],
       login: draft['login'],

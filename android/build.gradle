@@ -5,8 +5,13 @@ buildscript {
     }
 
     dependencies {
+        // https://developer.android.com/studio/releases/gradle-plugin
+        // сначала собирал на 4.1.0 и размер апк конский был,
+        // затем прыгнул на 3.5.4 и нормально стало
+        // собралось в 30 метров без ошибок, причем больше ничего не менял
         classpath 'com.android.tools.build:gradle:3.5.4'
         // https://stackoverflow.com/questions/66757878/flutter-already-active-image-picker-is-already-active-null-null
+        // 4.1.0 собирается в 80мб
         //classpath 'com.android.tools.build:gradle:4.1.0'
         classpath 'com.google.gms:google-services:4.3.8'
     }
