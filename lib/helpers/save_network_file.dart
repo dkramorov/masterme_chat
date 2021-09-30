@@ -8,8 +8,11 @@ import 'package:permission_handler/permission_handler.dart';
 class SaveNetworkFile {
   static String TAG = 'SaveNetworkFile';
 
-  static Future<void> makeAppFolder() async {
-
+  static Future<String> makeAppFolder() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final String destFolder = directory.path + '/' + APP_FOLDER;
+    await new Directory(destFolder).create();
+    return destFolder;
   }
 
   static Future<File> getFileFromNetwork(String url,
@@ -22,9 +25,7 @@ class SaveNetworkFile {
       ].request();
       return null;
     }
-    final directory = await getApplicationDocumentsDirectory();
-    final String destFolder = directory.path + '/' + APP_FOLDER;
-    await new Directory(destFolder).create();
+    final String destFolder = await makeAppFolder();
     final fileName = url.split('/').last;
     final File dest = File(destFolder + '/' + fileName);
     Dio dio = new Dio();
@@ -32,7 +33,7 @@ class SaveNetworkFile {
       url,
       dest.path,
     );
-    Log.d(TAG, '---DOWNLOADED---\n${dest.path}');
+    Log.d(TAG, '---DOWNLOADED--- ${dest.path}');
     return dest;
   }
 }

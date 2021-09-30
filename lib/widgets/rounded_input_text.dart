@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import '../constants.dart';
 
 class RoundedInputText extends StatelessWidget {
-
   final String hint;
   final Function onChanged;
   final Function validator;
@@ -15,6 +14,7 @@ class RoundedInputText extends StatelessWidget {
   final TextInputType keyboardType;
   final bool showCursor;
   final bool readOnly;
+  final TextAlign textAlign;
 
   RoundedInputText({
     this.hint,
@@ -27,13 +27,16 @@ class RoundedInputText extends StatelessWidget {
     this.keyboardType,
     this.showCursor,
     this.readOnly,
+    this.textAlign,
   });
 
   TextInputType getKeyboardType() {
     if (keyboardType != null) {
       return keyboardType;
     }
-    return this.hint.indexOf('Email') >= 0 ? TextInputType.emailAddress : TextInputType.text;
+    return this.hint.indexOf('Email') >= 0
+        ? TextInputType.emailAddress
+        : TextInputType.text;
   }
 
   @override
@@ -41,7 +44,7 @@ class RoundedInputText extends StatelessWidget {
     return TextFormField(
       controller: controller,
       inputFormatters: this.formatters != null ? this.formatters : null,
-      textAlign: TextAlign.center,
+      textAlign: this.textAlign == null ? TextAlign.center : this.textAlign,
       onSaved: this.onChanged,
       decoration: INPUT_DECORATION.copyWith(
         hintText: this.hint,
@@ -52,7 +55,9 @@ class RoundedInputText extends StatelessWidget {
       keyboardType: getKeyboardType(),
       validator: validator,
       initialValue: controller == null ? defaultValue : null,
-      autovalidateMode: validator == null ? AutovalidateMode.disabled : AutovalidateMode.onUserInteraction,
+      autovalidateMode: validator == null
+          ? AutovalidateMode.disabled
+          : AutovalidateMode.onUserInteraction,
       showCursor: showCursor != null ? showCursor : true,
       readOnly: readOnly != null ? readOnly : false,
     );

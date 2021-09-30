@@ -31,6 +31,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final GlobalKey<FormState> _regFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _regConfirmCodeFormKey = GlobalKey<FormState>();
 
+  @override
+  void setState(fn) {
+    if (mounted) {
+      super.setState(fn);
+    }
+  }
+
   void openHUD() {
     setState(() {
       loading = true;

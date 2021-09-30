@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:masterme_chat/db/chat_draft_model.dart';
+import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/widgets/chat/logic/input_logic.dart';
 import 'package:masterme_chat/widgets/chat/record_widget.dart';
@@ -269,21 +270,6 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     );
   }
 
-  /* Запрос прав на запись аудио */
-  Future<void> requestAudioPerms() async {
-    final storagePerms = await Permission.microphone.status;
-    Log.i(TAG, 'microphone perms status $storagePerms');
-    if (!storagePerms.isGranted) {
-      if (await Permission.microphone.isPermanentlyDenied) {
-        openAppSettings();
-      } else {
-        await [
-          Permission.microphone,
-        ].request();
-      }
-    }
-  }
-
   /* Кнопка записи аудио */
   Widget buildAudioRecordButton() {
     if (_sendAudioRecordVisible || _sendButtonVisible) {
@@ -299,11 +285,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
             Icons.mic_outlined,
             size: 28.0,
           ),
-          onPressed: () {
-            setState(() {
-              requestAudioPerms();
-              _sendAudioRecordVisible = true;
-            });;
+          onPressed: () async {
+            bool hasPerm = await permsCheck(Permission.microphone, 'микрофон', context);
+            if (hasPerm) {
+              setState(() {
+                _sendAudioRecordVisible = true;
+              });
+            }
           },
         ),
       ),

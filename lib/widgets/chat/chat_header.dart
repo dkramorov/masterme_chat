@@ -1,8 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:masterme_chat/constants.dart';
 
 class ChatHeaderWidget extends StatelessWidget {
-
   final String name;
   final String image;
 
@@ -27,8 +26,10 @@ class ChatHeaderWidget extends StatelessWidget {
             width: 2,
           ),
           CircleAvatar(
-            backgroundColor: PRIMARY_BG_COLOR,
-            backgroundImage: AssetImage(image),
+            backgroundColor: Colors.transparent,
+            backgroundImage: image.startsWith('assets/')
+                ? AssetImage(image)
+                : FileImage(File(image)),
             maxRadius: 20,
           ),
           SizedBox(
@@ -41,6 +42,9 @@ class ChatHeaderWidget extends StatelessWidget {
               children: <Widget>[
                 Text(
                   name,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -51,7 +55,7 @@ class ChatHeaderWidget extends StatelessWidget {
                   height: 6,
                 ),
                 Text(
-                  'Online',
+                  'Чат с пользователем',
                   style: TextStyle(
                     color: Colors.grey.shade200,
                     fontSize: 13,

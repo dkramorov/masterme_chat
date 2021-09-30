@@ -6,6 +6,7 @@ import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 
 import 'package:masterme_chat/services/jabber_connection.dart';
+import 'package:masterme_chat/widgets/chat/chat_header.dart';
 import 'package:masterme_chat/widgets/chat/input_widget.dart';
 import 'package:masterme_chat/widgets/chat/list_widget.dart';
 import 'package:masterme_chat/widgets/chat/message_widget.dart';
@@ -159,7 +160,7 @@ class _ChatScreenState extends State<ChatScreen> {
       // Отложенное действие - отправляем файл, когда загрузится
       if (file != null) {
         JabberConn.messageHandler.sendMessage(
-            logic.buddy.jid, newMessage.content,
+            logic.companion.buddy.jid, newMessage.content,
             url: newMessage.url,
             urlType: newMessage.urlType,
             localId: newMessage.localId.toString());
@@ -267,8 +268,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Звонок',
+        flexibleSpace: SafeArea(
+          child: ChatHeaderWidget(
+            name: logic.companion.getName(),
+            image: logic.companion.getAvatar(),
+          ),
         ),
       ),
       body: Stack(

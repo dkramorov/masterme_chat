@@ -9,7 +9,6 @@ import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/services/push_manager.dart';
 import 'package:masterme_chat/widgets/rounded_button_widget.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:rxdart/subjects.dart';
 
 class HomeScreen extends StatefulWidget {
   // Обязательно '/' без него завалится все нахер

@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/constants.dart';
+import 'package:masterme_chat/db/user_chat_model.dart';
+import 'package:masterme_chat/helpers/phone_mask.dart';
+import 'package:masterme_chat/helpers/save_network_file.dart';
 
 import 'database_singletone.dart';
 
@@ -12,6 +16,7 @@ class ContactChatModel extends AbstractModel {
   String login;
   String name;
   String avatar;
+  String avatarUrl;
   String status;
   String parent; // UserChatModel login
   String time;
@@ -28,11 +33,13 @@ class ContactChatModel extends AbstractModel {
     return ContactChatModel.tableName;
   }
 
-  ContactChatModel({id, login, name, avatar, status, parent, time, msg}) {
+  ContactChatModel(
+      {id, login, name, avatar, avatarUrl, status, parent, time, msg}) {
     this.id = id;
     this.login = login;
     this.name = name;
     this.avatar = avatar;
+    this.avatarUrl = avatarUrl;
     this.status = status;
     this.parent = parent;
     this.time = time;
@@ -42,6 +49,42 @@ class ContactChatModel extends AbstractModel {
     this.buddy = xmpp.Buddy(jid);
   }
 
+  String getName() {
+    if (this.name != null && this.name != '') {
+      return this.name;
+    }
+    if (this.login.startsWith('89')) {
+      return phoneMaskHelper(this.login);
+    }
+    return this.login;
+  }
+
+  String getAvatar() {
+    if (this.avatar != null && this.avatar != '') {
+      if (!File(this.avatar).existsSync()) {
+        dowloadAvatar();
+        return DEFAULT_AVATAR;
+      }
+      return this.avatar;
+    }
+    return DEFAULT_AVATAR;
+  }
+
+  /* Загружаем аватарку если ссыль есть */
+  Future<void> dowloadAvatar() async {
+    ContactChatModel self = this;
+    if (self.avatarUrl != null && self.avatarUrl.startsWith('http')) {
+      SaveNetworkFile.getFileFromNetwork(self.avatarUrl).then((avatar) {
+        this.updatePartial(self.id, {
+          'avatarUrl': self.avatarUrl,
+          'avatar': avatar.path,
+        });
+        self.avatar = avatar.path;
+        self.key = UniqueKey();
+      });
+    }
+  }
+
   @override
   Map<String, dynamic> toMap() {
     return {
@@ -49,6 +92,7 @@ class ContactChatModel extends AbstractModel {
       'login': login,
       'name': name,
       'avatar': avatar,
+      'avatarUrl': avatarUrl,
       'status': status,
       'parent': parent,
       'time': time,
@@ -63,6 +107,7 @@ class ContactChatModel extends AbstractModel {
       login: dbItem['login'],
       name: dbItem['name'],
       avatar: dbItem['avatar'],
+      avatarUrl: dbItem['avatarUrl'],
       status: dbItem['status'],
       parent: dbItem['parent'],
       time: dbItem['time'],
@@ -73,10 +118,11 @@ class ContactChatModel extends AbstractModel {
   @override
   String toString() {
     final String table = getTableName();
-    return '$table{id: $id, login: $login, name: $name, avatar: $avatar, status: $status, parent: $parent, time: $time, msg: $msg}';
+    return '$table{id: $id, login: $login, name: $name, ' +
+        'avatar: $avatar, avatarUrl: $avatarUrl, status: $status, ' +
+        'parent: $parent, time: $time, msg: $msg}';
   }
 
-  // A method that retrieves contacts for parent user
   static Future<List<ContactChatModel>> getAllContacts(String parent) async {
     final db = await openDB();
 
@@ -91,24 +137,9 @@ class ContactChatModel extends AbstractModel {
     });
   }
 
-  /* Обновляем выборочные поля контакта */
-  static Future<void> updateContact(int pk, Map<String, dynamic> values) async {
-    if (pk == null) {
-      Log.e('[ERROR]: updateContact', 'pk is null');
-      return;
-    }
-    Log.d('updateContact pk=$pk', '${values.toString()}');
-    final db = await openDB();
-    int updated = await db.update(
-      tableName,
-      values,
-      where: 'id = ?',
-      whereArgs: [pk],
-    );
-  }
-
   /* Получение сообщения по коду */
-  static Future<ContactChatModel> getByLogin(String parent, String login) async {
+  static Future<ContactChatModel> getByLogin(
+      String parent, String login) async {
     final db = await openDB();
 
     final List<Map<String, dynamic>> users = await db.query(

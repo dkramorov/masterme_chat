@@ -33,16 +33,15 @@ class InputWidgetLogic {
     await onPickAudio(result.path);
   }
 
-  /* Отправка изображения */
+  /* Загрузка изображения */
   void handleImageSelection({ImageSource source = ImageSource.gallery}) async {
-    /* Загрузка изображения */
     PickedFile result;
     try {
       result = await ImagePicker().getImage(
         source: source,
       );
     } catch (err) {
-      permissionsErrorDialog('фото');
+      permissionsErrorDialog('фото', context);
       return;
     }
 
@@ -89,7 +88,7 @@ class InputWidgetLogic {
         source: source,
       );
     } catch (err) {
-      permissionsErrorDialog('видео');
+      permissionsErrorDialog('видео', context);
       return;
     }
 
@@ -103,22 +102,5 @@ class InputWidgetLogic {
     } else {
       // User canceled the picker
     }
-  }
-
-  /* Предупреждение, что недостаточно прав */
-  void permissionsErrorDialog(String permDesc) {
-    // Пока глушим диалог, а то хрен опубликуешь
-    // TODO: обыграть по-другому
-    if (Platform.isIOS) {
-      return;
-    }
-    openInfoDialog(context, () {
-      openAppSettings();
-    },
-        'Нет доступа к $permDesc',
-        'Вы не дали разрешение на использование $permDesc.\n' +
-            'Пожалуйста, добавьте разрешение в настройках.\n' +
-            'Сейчас мы откроем настройки приложения',
-        'Понятно');
   }
 }

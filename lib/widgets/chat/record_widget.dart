@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:masterme_chat/constants.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:masterme_chat/helpers/save_network_file.dart';
 import 'package:record/record.dart';
 
 class RecordWidget extends StatefulWidget {
@@ -39,9 +37,7 @@ class _RecordWidgetState extends State<RecordWidget> {
 
   /* Получение пути до аудио файла */
   Future<String> getPath() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final String destFolder = dir.path + '/' + APP_FOLDER;
-    await new Directory(destFolder).create();
+    final String destFolder = await SaveNetworkFile.makeAppFolder();
     final String fullPath =
         destFolder + '/' + DateTime.now().millisecondsSinceEpoch.toString() + '.m4a';
     this.path = fullPath;

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:masterme_chat/db/user_chat_model.dart';
+import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/constants.dart';
@@ -35,18 +36,10 @@ class LoginScreenLogic extends AbstractScreenLogic {
     return TAG;
   }
 
-  void openHUD() {
-    setStateCallback({'loading': true});
-  }
-
-  void closeHUD() {
-    setStateCallback({'loading': false});
-  }
-
   /* Выход */
   logout() async {
     JabberConn.clear();
-    setStateCallback({'loading': false, 'loggedIn': false});
+    setStateCallback({'loading': false, 'loggedIn': false, 'autoLogin': false});
     checkState();
   }
 
@@ -55,13 +48,14 @@ class LoginScreenLogic extends AbstractScreenLogic {
 
     final fullLogin =
         login.replaceAll(RegExp('[^0-9]+'), '') + '@' + JABBER_SERVER;
-    openHUD();
+
     try {
       jid = xmpp.Jid.fromFullJid(fullLogin);
     } catch (e) {
       print(e);
       return;
     }
+    openHUD();
     xmpp.XmppAccountSettings account = xmpp.XmppAccountSettings(
       fullLogin,
       jid.local,
@@ -70,29 +64,46 @@ class LoginScreenLogic extends AbstractScreenLogic {
       JABBER_PORT,
     );
     JabberConn.createConnection(account);
+    setStateCallback({
+      'listenConnectionStream': true,
+      'login': login,
+      'passwd': passwd,
+    });
   }
 
-  /* Вытаскиваем пользователя из базы (последнего) */
-  Future<void> userFromDb() async {
+  /* Вытаскиваем пользователя из базы (последнего)
+     предполагаем работу функции через FutureBuilder
+  */
+  Future<UserChatModel> userFromDb() async {
     if (JabberConn.connection != null && JabberConn.connection.authenticated) {
-      return;
+      Log.d(TAG, 'already connected ${JabberConn.curUser.login}');
+      return JabberConn.curUser;
     }
-    UserChatModel curUser = await UserChatModel.getLastLoginUser();
-    if (curUser == null) {
-      return;
+    UserChatModel dbUser = await UserChatModel.getLastLoginUser();
+    if (dbUser == null) {
+      Log.d(TAG, 'there is no user id db');
+      return null;
     }
-    openHUD();
-    final login = curUser.login.replaceAll('@$JABBER_SERVER', '');
-    final passwd = curUser.passwd;
-    await authorization(login, passwd);
-    setStateCallback({'login': login, 'passwd': passwd});
+    Log.d(TAG, 'user found ${dbUser.login}');
+    //openHUD();
+    final login = dbUser.getLogin();
+    final passwd = dbUser.passwd;
+    //await authorization(login, passwd);
+    //setStateCallback({'login': login, 'passwd': passwd});
+    return dbUser;
+  }
+
+  /* Авторизация */
+  Future<void> doLogin(String login, String passwd) async {
+    if (login != null && login != '' && passwd != null && passwd != '') {
+      openHUD();
+      await authorization(login, passwd);
+    }
   }
 
   /* Втыкаем пользователя в базу */
   static Future<void> user2Db(String login, String passwd) async {
-    UserChatModel user = await UserChatModel.insertLastLoginUser(login, passwd);
-    JabberConn.loggedIn = true;
-    JabberConn.curUser = user;
+    JabberConn.curUser = await UserChatModel.insertLastLoginUser(login, passwd);
   }
 
   /* Если приходило пушь уведомление,
@@ -120,5 +131,13 @@ class LoginScreenLogic extends AbstractScreenLogic {
         pushTo = result[1];
       }
     }
+  }
+
+  /* Пришло событие xmpp.XmppConnectionState.Ready */
+  Future<void> authorizationSuccess(String login, String passwd) async {
+    await user2Db(login, passwd);
+    JabberConn.sendToken();
+    checkState();
+    closeHUD();
   }
 }

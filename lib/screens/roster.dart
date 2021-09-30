@@ -100,11 +100,7 @@ class _RosterScreenState extends State<RosterScreen> {
       String phone = chatUser.login.split('@')[0];
       if (phone == logic.pushFrom && ModalRoute.of(context).isCurrent) {
         Navigator.pushNamed(context, ChatScreen.id, arguments: {
-          'name': chatUser.name,
-          'image': chatUser.avatar != null
-              ? chatUser.avatar
-              : 'assets/avatars/user.png',
-          'buddy': chatUser.buddy,
+          'user': chatUser,
         });
         return;
       }
@@ -231,13 +227,15 @@ class _RosterScreenState extends State<RosterScreen> {
             },
             child: ChatUserWidget(
               key: item.key == null ? UniqueKey() : item.key,
+              user: item,
+              /*
               name: item.name != null ? item.name : '',
               messageText: item.msg != null ? item.msg : item.login,
-              image:
-                  item.avatar != null ? item.avatar : 'assets/avatars/user.png',
+              image: item.getAvatar(),
               time: item.time != null ? item.time : '-',
               isRead: false,
               buddy: item.buddy,
+               */
             ),
           );
         },

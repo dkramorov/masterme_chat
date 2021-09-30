@@ -9,6 +9,14 @@ import 'package:masterme_chat/constants.dart';
 class SipConnection implements SipUaHelperListener {
   static const String TAG = 'SipConnection';
 
+
+  static final SipConnection _singleton = SipConnection._internal();
+  factory SipConnection() {
+    return _singleton;
+  }
+  SipConnection._internal();
+
+
   SIPUAHelper helper;
   String userAgent;
   RegistrationState registerState;
@@ -31,7 +39,7 @@ class SipConnection implements SipUaHelperListener {
   String holdOriginator;
   CallStateEnum state = CallStateEnum.NONE;
 
-  SipConnection(String userAgent) {
+  void init(String userAgent) {
     if (helper != null && userAgent != userAgent) {
       helper.unregister();
       helper.stop();
@@ -160,7 +168,7 @@ class SipConnection implements SipUaHelperListener {
       if (localRenderer != null) {
         localRenderer.srcObject = stream;
       }
-      event.stream?.getAudioTracks()?.first?.enableSpeakerphone(false);
+      event.stream?.getAudioTracks()?.first?.enableSpeakerphone(speakerOn);
       localStream = stream;
     }
     if (event.originator == 'remote') {

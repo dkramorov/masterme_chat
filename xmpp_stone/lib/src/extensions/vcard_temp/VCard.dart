@@ -18,6 +18,11 @@ class VCard extends XmppElement {
     _parseImage();
   }
 
+  // Custom methods
+  String get imageByUrl => getChild('IMAGE')?.textValue;
+  String get sex => getChild('SEX')?.textValue;
+  String get mail => getChild('MAIL')?.textValue;
+
   String get fullName => getChild('FN')?.textValue;
 
   String get familyName => getChild('N')?.getChild('FAMILY')?.textValue;
@@ -134,6 +139,7 @@ class VCard extends XmppElement {
       _image = img.decodeImage(_imageData);
     }
   }
+
 }
 
 class InvalidVCard extends VCard {

@@ -7,9 +7,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:masterme_chat/helpers/log.dart';
-import 'package:masterme_chat/screens/chat.dart';
-import 'package:masterme_chat/screens/home.dart';
-import 'package:masterme_chat/screens/login.dart';
+import 'package:masterme_chat/screens/core/root_wizard_screen.dart';
+import 'package:masterme_chat/services/telegram_bot.dart';
 import 'package:rxdart/subjects.dart';
 
 import 'package:masterme_chat/services/jabber_connection.dart';
@@ -147,7 +146,8 @@ class PushNotificationsManager {
   }
 
   // Приходит сообщение, значит, надо распарсить
-  static Map<String, dynamic> parseIncomingPushNotification(Map<String, dynamic> message) {
+  static Map<String, dynamic> parseIncomingPushNotification(
+      Map<String, dynamic> message) {
     Map<String, dynamic> result = {};
     // APNS has strange format
     var aps = message['aps'];
@@ -167,6 +167,12 @@ class PushNotificationsManager {
         result['receiver'] = data['receiver'];
       }
     }
+    // TODO: collapse {body: aaa, title: test, e: 1, tag: campaign_collapse_key_3739}}
+    if (result['sender'] == null || result['receiver'] == null){
+      Log.d(TAG, 'Ignore notification because sender and receiver is null in ${message.toString()}');
+      result['sender'] = 'Test';
+      result['receiver'] = 'ALL';
+    }
     result['resultText'] = result['sender'] + '=>' + result['receiver'];
     return result;
   }
@@ -176,7 +182,9 @@ class PushNotificationsManager {
       {bool foreground = false}) async {
     Map<String, dynamic> parsedMsg = parseIncomingPushNotification(message);
 
-    if (foreground && parsedMsg['sender'] == JabberConn.receiver) {
+    if (foreground &&
+        JabberConn.receiver != null &&
+        JabberConn.receiver.contains(parsedMsg['sender'])) {
       Log.d(TAG, 'already foreground chat ${parsedMsg.toString()}');
       return;
     }
@@ -210,12 +218,15 @@ class PushNotificationsManager {
               sound: true, badge: true, alert: true, provisional: true));
       _firebaseMessaging.onIosSettingsRegistered
           .listen((IosNotificationSettings settings) {
-        print("Settings registered: $settings");
+        Log.d(TAG, 'Settings registered: $settings');
       });
       _firebaseMessaging.getToken().then((String token) {
         assert(token != null);
         this.token = token;
         JabberConn.TOKEN_FCM = token;
+      }).onError((err, trace) {
+        TelegramBot().sendError(err.toString());
+        TelegramBot().sendError(trace.toString());
       });
 
       _firebaseMessaging.onTokenRefresh.listen((String newToken) {
@@ -243,20 +254,15 @@ class PushNotificationsManager {
           return;
         }
 
-        // Если мы уже на страничке чатов
+        // Если мы уже на страничке чата
         if (JabberConn.receiver != null &&
-            payload.contains(JabberConn.receiver)) {
+            JabberConn.receiver.contains(payload.split('=>')[1])) {
           return;
         }
         // Толкаем на главную
         Navigator.of(materialKey.currentContext)
-            .popUntil((route) => route.settings.name == HomeScreen.id);
-        // Толкаем на чат, т/к пока пуши только с чата
-        await Navigator.pushNamed(
-          materialKey.currentContext,
-          LoginScreen.id,
-          arguments: {'payload': payload},
-        );
+            .popUntil((route) => route.settings.name == RootScreen.id);
+        JabberConn.pushStreamController.add(payload);
       });
 
       _initialized = true;

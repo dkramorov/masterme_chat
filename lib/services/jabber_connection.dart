@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/contact_chat_model.dart';
@@ -18,7 +20,9 @@ class JabberConn {
 
   static String receiver;
   static String TOKEN_FCM;
+  static String appVersion;
 
+  static xmpp.VCardManager vCardManager;
   static xmpp.RosterManager rosterManager;
   static xmpp.PresenceManager presenceManager;
   static xmpp.MessageHandler messageHandler;
@@ -28,15 +32,34 @@ class JabberConn {
 
   static xmpp.Connection connection;
 
-  static StreamController<xmpp.XmppConnectionState> connectionStreamController = StreamController();
-  static Stream connectionStream = connectionStreamController.stream.asBroadcastStream();
+  static StreamController<String> pushStreamController = StreamController();
+  static Stream pushStream = pushStreamController.stream.asBroadcastStream();
 
-  static StreamController<xmpp.Message> messagesStreamController = StreamController();
-  static Stream<xmpp.Message> messagesStream = messagesStreamController.stream.asBroadcastStream();
+  static StreamController<xmpp.XmppConnectionState> connectionStreamController =
+      StreamController();
+  static Stream connectionStream =
+      connectionStreamController.stream.asBroadcastStream();
+
+  static StreamController<xmpp.Message> messagesStreamController =
+      StreamController();
+  static Stream<xmpp.Message> messagesStream =
+      messagesStreamController.stream.asBroadcastStream();
 
   static bool loggedIn = false;
   static UserChatModel curUser;
   static List<ContactChatModel> contactsList = [];
+
+  /* sha256 на логин + пароль
+     для различных операций, требующих авторизации
+  */
+  static String credentialsHash() {
+    if (JabberConn.curUser != null) {
+      List<int> credentials =
+          utf8.encode(JabberConn.curUser.login + JabberConn.curUser.passwd);
+      return sha256.convert(credentials).toString();
+    }
+    return null;
+  }
 
   static healthcheck() {
     healthCheckTimer = Timer.periodic(Duration(seconds: 3), (Timer t) async {
@@ -145,20 +168,6 @@ class JabberConn {
       connection.close();
       connection = null;
     }
-/*
-    if (connectionStreamController != null) {
-      if (connectionStreamController.sink != null) {
-        connectionStreamController.sink.close();
-      }
-      connectionStreamController.close();
-    }
-    if (messagesStreamController != null) {
-      if (messagesStreamController.sink != null) {
-        messagesStreamController.sink.close();
-      }
-      messagesStreamController.close();
-    }
- */
 
     xmpp.RosterManager.instances.clear();
     xmpp.PresenceManager.instances.clear();
@@ -169,7 +178,20 @@ class JabberConn {
     xmpp.Connection.instances.clear();
   }
 
+  /* Ищем пользователя в JabberConn.contactsList */
+  static ContactChatModel searchInContactsList(ContactChatModel contact) {
+    for (ContactChatModel itemInContactsList in JabberConn.contactsList) {
+      if (itemInContactsList.login == contact.login) {
+        return itemInContactsList;
+      }
+    }
+    return null;
+  }
+
   void dispose() {
+    if (pushStreamController != null) {
+      pushStreamController.close();
+    }
     if (connectionStreamController != null) {
       connectionStreamController.close();
     }
@@ -177,7 +199,6 @@ class JabberConn {
       messagesStreamController.close();
     }
   }
-
 }
 
 class ConnectionListener implements xmpp.ConnectionStateChangedListener {
@@ -188,7 +209,7 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
     _connection.connectionStateStream.listen(onConnectionStateChanged);
   }
 
-  /* Обрабатываем пуш сообщение,
+  /* TODO: Обрабатываем пуш сообщение,
      добавляем контакт в список если такого контакта нет,
      чтобы отобразить его в ростере
   */
@@ -220,7 +241,7 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
     } else if (curMessage.to.userAtDomain == me) {
       friend = curMessage.from.userAtDomain;
     }
-    if (friend == null){
+    if (friend == null) {
       Log.e('[ERROR]: checkContactInRoster', 'friend not found');
       return;
     }
@@ -254,12 +275,12 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
         login: curMessage.from.userAtDomain,
         parent: me,
         time: curMessage.time.toIso8601String(),
-        msg: curMessage.text,
+        msg: msgText,
       );
       JabberConn.contactsList.add(contact);
     } else {
       contact.time = curMessage.time.toIso8601String();
-      contact.msg = curMessage.text;
+      contact.msg = msgText;
       buddy = contact.buddy;
     }
     // Заставлем rosterManager выплюнуть событие с пользователем
@@ -278,6 +299,9 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
         // чтобы все знали, что надо обновиться, т/к соединение новое
         JabberConn.instanceKey += 1;
 
+        JabberConn.loggedIn = true;
+
+        JabberConn.vCardManager = xmpp.VCardManager.getInstance(_connection);
         JabberConn.rosterManager = xmpp.RosterManager.getInstance(_connection);
         JabberConn.presenceManager =
             xmpp.PresenceManager.getInstance(_connection);
@@ -292,7 +316,19 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
         JabberConn.messageHandler.messagesStream
             .listen((xmpp.MessageStanza message) {
           xmpp.Message curMessage = xmpp.Message.fromStanza(message);
-          checkContactInRoster(curMessage);
+
+          if (curMessage.from.local == JabberConn.curUser.login &&
+              curMessage.to.local == JabberConn.curUser.login) {
+            Log.d(JabberConn.TAG,
+                'received message from self to self, ignoring...');
+            return;
+          }
+          // Если это MAM тогда не надо checkContactInRoster
+          if (curMessage.isMam) {
+            // IT'S MAM message, do not need bustling
+          } else {
+            checkContactInRoster(curMessage);
+          }
           JabberConn.messagesStreamController.add(curMessage);
         });
         JabberConn.connection.reconnectionManager.counter = 0;
@@ -302,8 +338,17 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
         if (JabberConn.fileUploadManager.formType == null) {
           JabberConn.fileUploadManager.queryUploadInfo();
         }
+
+        JabberConn.vCardManager.getSelfVCard().then((vCard) {
+          if (vCard != null) {
+            Future.delayed(Duration(seconds: 1), () async {
+              JabberConn.curUser.updateFromVCard(vCard);
+            });
+          } else {
+            Log.d(JabberConn.TAG, 'Your vCard is null');
+          }
+        });
       }
     }
   }
 }
-

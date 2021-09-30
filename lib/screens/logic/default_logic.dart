@@ -17,14 +17,15 @@ abstract class AbstractScreenLogic {
   String getTAG() {
     return TAG;
   }
-
+/*
   AbstractScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
       checkState();
-      //Log.d(TAG, '${t.tick}');
+      Log.d(getTAG(), '${t.tick}');
     });
   }
+ */
 
   Future<void> onTick() async {
     // функция для override
@@ -36,12 +37,40 @@ abstract class AbstractScreenLogic {
     if (JabberConn.loggedIn == loggedIn && JabberConn.curUser == curUser) {
       return;
     }
-    Log.w(getTAG(), 'STATE CHANGED loggedIn $loggedIn => ${JabberConn.loggedIn}');
+
+    Log.w(
+        getTAG(), 'STATE CHANGED loggedIn $loggedIn => ${JabberConn.loggedIn}');
     loggedIn = JabberConn.loggedIn;
     curUser = JabberConn.curUser;
 
     // Состояние изменилось раз мы тут
-    setStateCallback({'loggedIn': loggedIn});
-    onTick();
+    if (setStateCallback != null) {
+      setStateCallback({'loggedIn': loggedIn, 'curUser': curUser});
+      onTick();
+    }
+  }
+
+  void openHUD() {
+    setStateCallback({'loading': true});
+  }
+
+  void closeHUD() {
+    setStateCallback({'loading': false});
+  }
+
+  void deactivate() {
+    Log.d(getTAG(), '--- deactivate ---');
+    if (this.screenTimer != null) {
+      this.screenTimer.cancel();
+      this.screenTimer = null;
+    }
+  }
+
+  void dispose() {
+    Log.d(getTAG(), '--- dispose ---');
+    if (this.screenTimer != null) {
+      this.screenTimer.cancel();
+      this.screenTimer = null;
+    }
   }
 }

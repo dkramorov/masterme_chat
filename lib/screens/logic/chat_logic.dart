@@ -6,10 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/db/chat_draft_model.dart';
 import 'package:masterme_chat/db/chat_message_model.dart';
+import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/save_network_file.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
+import 'package:masterme_chat/services/telegram_bot.dart';
 import 'package:masterme_chat/widgets/chat/message_widget.dart';
 import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/constants.dart';
@@ -29,13 +31,10 @@ class ChatScreenLogic extends AbstractScreenLogic {
   // Отслеживание состояния JabberConn
   bool loggedIn = false;
   UserChatModel curUser;
+  ContactChatModel companion;
 
   String me;
   String friend;
-
-  String username = 'unknown';
-  String image = 'assets/avatars/man1.jpg';
-  xmpp.Buddy buddy;
 
   bool historyCompleted = false;
   List<Message> messageList = [];
@@ -61,13 +60,10 @@ class ChatScreenLogic extends AbstractScreenLogic {
     // Аргументы доступны только после получения контекста
     final arguments = ModalRoute.of(context).settings.arguments as Map;
     if (arguments != null) {
-      username = arguments['name'];
-      image = arguments['image'];
-      buddy = arguments['buddy'];
-      JabberConn.receiver = username;
-
+      companion = arguments['user'];
+      JabberConn.receiver = companion.login;
       me = JabberConn.connection?.fullJid?.userAtDomain;
-      friend = buddy.jid.userAtDomain;
+      friend = companion.buddy.jid.userAtDomain;
     }
   }
 
@@ -106,7 +102,7 @@ class ChatScreenLogic extends AbstractScreenLogic {
         JabberConn.connection?.state == xmpp.XmppConnectionState.Resumed) {
       for (ChatMessageModel msg in brokenMessages) {
         if (msg.sendState == SendStates.none.index) {
-          JabberConn.messageHandler.sendMessage(buddy.jid, msg.msg,
+          JabberConn.messageHandler.sendMessage(companion.buddy.jid, msg.msg,
               url: msg.url, urlType: msg.urlType, localId: msg.id.toString());
           ChatMessageModel.updateSendState(msg.id, SendStates.pending.index);
         }
@@ -146,7 +142,7 @@ class ChatScreenLogic extends AbstractScreenLogic {
       return;
     }
     isServerMessagesLoaded = true;
-    JabberConn.messageArchiveManager.queryLastMessages(jid: buddy.jid);
+    JabberConn.messageArchiveManager.queryLastMessages(jid: companion.buddy.jid);
   }
 
   Future<void> loadAllMessages() async {
@@ -322,7 +318,7 @@ class ChatScreenLogic extends AbstractScreenLogic {
       final String lastCode =
           lastReceivedCode == null ? null : '$lastReceivedCode';
       JabberConn.messageArchiveManager
-          .queryLastMessages(jid: buddy.jid, before: lastCode);
+          .queryLastMessages(jid: companion.buddy.jid, before: lastCode);
     }
   }
 
@@ -337,13 +333,23 @@ class ChatScreenLogic extends AbstractScreenLogic {
       },
       body: jsonEncode(<String, String>{
         'body': msg,
+        'name': JabberConn.curUser.getName(),
         'urlType': urlType,
-        'toJID': buddy.jid.local,
+        'toJID': companion.buddy.jid.local,
         'fromJID': JabberConn.connection.fullJid.local,
+        'credentials': JabberConn.credentialsHash(),
       }),
     );
     Log.i(TAG,
         'notification response ${response.statusCode}, ${response.body.toString()}');
+    try {
+      var decoded = json.decode(response.body);
+      TelegramBot().notificationResponse(
+          '${response.statusCode}=>${JsonEncoder.withIndent('  ').convert(decoded)}');
+    } catch (Exception) {
+      TelegramBot().notificationResponse(
+          '${response.statusCode}=>${response.body.toString()}');
+    }
   }
 
   /* Отправка сообщения
@@ -370,7 +376,7 @@ class ChatScreenLogic extends AbstractScreenLogic {
 
     // Сразу нельзя засылать с файлом, поэтому надо отложить действие
     if (file == null) {
-      JabberConn.messageHandler.sendMessage(buddy.jid, msg,
+      JabberConn.messageHandler.sendMessage(companion.buddy.jid, msg,
           url: url, urlType: urlType, localId: chatMessage.id.toString());
       // Отправить уведомление (на каждый чих)
       sendNotification(msg, urlType);
@@ -407,7 +413,7 @@ class ChatScreenLogic extends AbstractScreenLogic {
       afterId = '${lastMessages[0].code}';
     }
     JabberConn.messageArchiveManager
-        .queryAfterId(jid: buddy.jid, afterId: afterId, max: '5');
+        .queryAfterId(jid: companion.buddy.jid, afterId: afterId, max: '5');
   }
 
   /* Проверяем состояние экрана авторизации на соответствие JabberConn состоянию */

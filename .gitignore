@@ -56,4 +56,4 @@ pubspec.lock
 /README.md
 
 # А то там конфиденциальные данные
-#/lib/constants.dart
+/lib/constants.dart

@@ -324,7 +324,11 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    logic.checkUserReg();
+    Future.delayed(Duration.zero).then((_) async {
+      if (mounted) {
+        logic.checkUserReg();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(

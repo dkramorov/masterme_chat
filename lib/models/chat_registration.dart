@@ -11,6 +11,7 @@ class RegistrationModel {
   static const TAG = 'RegistrationModel';
   static const int CODE_PASSWD_CHANGED = 10090;
   static const int CODE_REGISTRATION_SUCCESS = 0;
+  static const int CODE_ERROR = -1;
   final int id;
   final String created;
   final String updated;
@@ -105,10 +106,19 @@ class RegistrationModel {
 
     if (response.statusCode == 200) {
       RegistrationModel registrationModel = parseResponse(response.body);
-      registrationModel.status = 'success';
-      registrationModel.code = CODE_REGISTRATION_SUCCESS;
-      registrationModel.message = 'Регистрация успешно завершена';
-      return registrationModel;
+      Log.d(TAG, 'parsedResponse: $registrationModel');
+      if (registrationModel.phone != null) {
+        registrationModel.status = 'success';
+        registrationModel.code = CODE_REGISTRATION_SUCCESS;
+        registrationModel.message = 'Регистрация успешно завершена';
+        return registrationModel;
+      } else {
+        return RegistrationModel(
+          status: 'error',
+          code: CODE_ERROR,
+          message: 'Неправильно введен код подтверждения',
+        );
+      }
     } else if (response.statusCode == 201) {
       // Сменили пароль
       return RegistrationModel(

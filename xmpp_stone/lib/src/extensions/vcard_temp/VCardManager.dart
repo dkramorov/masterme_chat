@@ -64,6 +64,37 @@ class VCardManager {
     return completer.future;
   }
 
+  /* Обновление vCard,
+     vCard обновляется полностью,
+     поэтому сразу надо все поля здесь иметь в актуальном состоянии
+     https://xmpp.org/extensions/xep-0054.html
+     ejabberdctl help set_vcard
+     ejabberdctl get_vcard 89148959223 anhel.1sprav.ru NICKNAME
+     ejabberdctl set_vcard 89148959223 anhel.1sprav.ru NICKNAME "jocker"
+  */
+  Future<void> updateVCard(Map<String,String> data) async {
+    var iqStanza = IqStanza(AbstractStanza.getRandomId(), IqStanzaType.SET);
+    iqStanza.fromJid = _connection.fullJid;
+    var vCardElement = XmppElement();
+    vCardElement.name = 'vCard';
+    vCardElement.addAttribute(XmppAttribute('xmlns', 'vcard-temp'));
+    /* Example
+    var vCardNameElement = XmppElement();
+    vCardNameElement.name = 'NICKNAME';
+    vCardNameElement.textValue = 'jocker';
+    vCardElement.addChild(vCardNameElement);
+    */
+    // Добавляем все из словаря data
+    data.forEach((k, v) {
+        var vCardNewElement = XmppElement();
+        vCardNewElement.name = k;
+        vCardNewElement.textValue = v;
+        vCardElement.addChild(vCardNewElement);
+    });
+    iqStanza.addChild(vCardElement);
+    _connection.writeStanza(iqStanza);
+  }
+
   void _connectionStateProcessor(XmppConnectionState event) {}
 
   Map<String, VCard> getAllReceivedVCards() {
