@@ -19,14 +19,42 @@ class AbstractModel {
   static final String tableName = 'test';
   static final String dbName = 'settings.db';
 
+  /* Companies database */
+  static final String dbCompaniesName = 'companies.db';
+
+  String getDbName() {
+    return dbName;
+  }
+
   String getTableName() {
     return tableName;
+  }
+
+  /* Выбираем какую базу открывать */
+  Future<Database> selectOpenDb() async {
+    if (getDbName() == dbCompaniesName) {
+      return await openCompaniesDB();
+    }
+    // Стандартное поведение (база по умолчанию)
+    return await openDB();
   }
 
   AbstractModel({this.id});
 
   static getInt(dynamic digit) {
-    return (digit != null && digit != '') ? digit as int : 0;
+    if (digit == null) {
+      return 0;
+    }
+    digit = '$digit';
+    return (digit != '') ? int.parse(digit) : 0;
+  }
+
+  static getDouble(dynamic digit) {
+    if (digit == null) {
+      return 0.0;
+    }
+    digit = '$digit';
+    return (digit != '') ? double.parse(digit) : 0.0;
   }
 
   Map<String, dynamic> toMap() {
@@ -43,7 +71,7 @@ class AbstractModel {
   Future<void> insert2Db() async {
     final tableName = getTableName();
     Log.i('$tableName insert2Db', '${this.toMap().toString()}');
-    final db = await openDB();
+    final db = await selectOpenDb();
     // id null if we need new row
     int pk = await db.insert(
       tableName,
@@ -59,7 +87,7 @@ class AbstractModel {
       Log.e('$tableName update2Db', 'id is null, we can not update');
       return;
     }
-    final db = await openDB();
+    final db = await selectOpenDb();
     await db.update(
       tableName,
       this.toMap(),
@@ -74,7 +102,7 @@ class AbstractModel {
       Log.e('$tableName delete2Db', 'id is null, we can not drop');
       return;
     }
-    final db = await openDB();
+    final db = await selectOpenDb();
     await db.delete(
       tableName,
       where: 'id = ?',
@@ -84,7 +112,7 @@ class AbstractModel {
 
   Future<void> dropAllRows() async {
     final tableName = getTableName();
-    final db = await openDB();
+    final db = await selectOpenDb();
     final dropped = await db.delete(
       tableName,
     );
@@ -93,7 +121,7 @@ class AbstractModel {
 
   Future<int> getCount() async {
     final tableName = getTableName();
-    final db = await openDB();
+    final db = await selectOpenDb();
     int count = Sqflite.firstIntValue(
         await db.rawQuery('SELECT COUNT(*) FROM $tableName'));
     Log.i('$tableName', 'rows count = ${count.toString()}');
@@ -108,7 +136,7 @@ class AbstractModel {
       return 0;
     }
     Log.d('updatePartial $tableName pk=$pk', '${values.toString()}');
-    final db = await openDB();
+    final db = await selectOpenDb();
 
     int updated = await db.update(
       tableName,
@@ -132,14 +160,15 @@ class AbstractModel {
   */
   Future<void> transaction(List<dynamic> queriesWithParams) async {
     final tableName = getTableName();
-    final db = await openDB();
-    Log.d('transaction $tableName', 'queries count: ${queriesWithParams.length}');
+    final db = await selectOpenDb();
+    Log.d('transaction ${db.path.split("/").last}.$tableName',
+        'queries count: ${queriesWithParams.length}');
     await db.transaction((txn) async {
       for (List<dynamic> queryWithParams in queriesWithParams) {
         String query = queryWithParams[0];
         List<dynamic> params = queryWithParams[1] as List<dynamic>;
         int count = await txn.rawInsert(query, params);
-        Log.d('transaction $tableName', 'inserted $count for query: $query, with params $params');
+        //Log.d('transaction $tableName', 'inserted $count for query: $query, with params $params');
       }
     });
   }
@@ -151,18 +180,19 @@ class AbstractModel {
 
      Если большой массив, надо делать постранично (start, end)
   */
-  Future<List<dynamic>> prepareTransactionQueries(dynamic models,
-      int start, int end) async {
+  Future<List<dynamic>> prepareTransactionQueries(
+      dynamic models, int start, int end) async {
     List<dynamic> result = [];
     final tableName = getTableName();
     final keys = models[0].toMap().keys;
     String paramsPlaceholder = ('?, ' * (keys.length - 1)) + '?';
     String paramsNames = keys.join(',');
-    String query = 'INSERT OR REPLACE INTO $tableName ($paramsNames) VALUES($paramsPlaceholder)';
+    String query =
+        'INSERT OR REPLACE INTO $tableName ($paramsNames) VALUES($paramsPlaceholder)';
 
     int index = 0;
 
-    for(var model in models) {
+    for (var model in models) {
       List<dynamic> queryParams = [];
       Map<String, dynamic> mapa = model.toMap();
       for (String paramName in keys) {
@@ -293,8 +323,9 @@ Future<Database> openDB() async {
   /* companies sql helper */
   void companiesSQL(Database db) {
     List<String> companiesSQLQueries = companiesSQLHelper();
-    for(int i=0; i<companiesSQLQueries.length; i++){
-      Log.d('companiesSQLHelper', 'query ${i+1} from ${companiesSQLQueries.length}');
+    for (int i = 0; i < companiesSQLQueries.length; i++) {
+      Log.d('companiesSQLHelper',
+          'query ${i + 1} from ${companiesSQLQueries.length}');
       db.execute(companiesSQLQueries[i]);
     }
   }
@@ -347,13 +378,53 @@ Future<Database> openDB() async {
       if (oldVersion <= 27) {
         companiesSQL(db);
       }
-
     },
     // Set the version. This executes the onCreate function and provides a
     // path to perform database upgrades and downgrades.
     version: DB_VERSION,
   );
   DBInstance.instance = await database;
+  return database;
+}
+
+class DBCompaniesInstance {
+  static Database instance;
+}
+
+Future<Database> openCompaniesDB() async {
+  if (DBCompaniesInstance.instance != null) {
+    return DBCompaniesInstance.instance;
+  }
+
+  /* companies sql helper */
+  void companiesSQL(Database db) {
+    List<String> companiesSQLQueries = companiesSQLHelper();
+    for (int i = 0; i < companiesSQLQueries.length; i++) {
+      Log.d('companiesSQLHelper',
+          'query ${i + 1} from ${companiesSQLQueries.length}');
+      db.execute(companiesSQLQueries[i]);
+    }
+  }
+
+  void createTables(Database db) {
+    companiesSQL(db);
+  }
+
+  final Future<Database> database = openDatabase(
+    join(await getDatabasesPath(), AbstractModel.dbCompaniesName),
+
+    onCreate: (db, version) {
+      createTables(db);
+    },
+    onUpgrade: (db, oldVersion, newVersion) {
+      Log.i('--- DB UPGRADE ---', '$oldVersion=>$newVersion');
+      createTables(db);
+    },
+    // Set the version. This executes the onCreate function and provides a
+    // path to perform database upgrades and downgrades.
+    version: DB_VERSION,
+  );
+  DBCompaniesInstance.instance = await database;
   return database;
 }
 

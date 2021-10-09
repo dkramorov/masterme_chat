@@ -14,6 +14,8 @@ abstract class AbstractScreenLogic {
   bool loggedIn = false;
   UserChatModel curUser;
 
+  bool isActive = true;
+
   String getTAG() {
     return TAG;
   }
@@ -21,7 +23,7 @@ abstract class AbstractScreenLogic {
   AbstractScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
-      checkState();
+      await checkState();
       Log.d(getTAG(), '${t.tick}');
     });
   }
@@ -64,6 +66,7 @@ abstract class AbstractScreenLogic {
       this.screenTimer.cancel();
       this.screenTimer = null;
     }
+    isActive = false;
   }
 
   void dispose() {
@@ -72,5 +75,6 @@ abstract class AbstractScreenLogic {
       this.screenTimer.cancel();
       this.screenTimer = null;
     }
+    isActive = false;
   }
 }

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
+import 'package:masterme_chat/models/companies/catalogue.dart';
+import 'package:masterme_chat/models/companies/search.dart';
+import 'package:masterme_chat/screens/companies/companies_listing_screen.dart';
 import 'package:masterme_chat/screens/logic/companies_logic.dart';
+import 'package:masterme_chat/widgets/companies/cat_row.dart';
+import 'package:masterme_chat/widgets/companies/catalogue_in_update.dart';
+import 'package:masterme_chat/widgets/companies/floating_search_widget.dart';
+import 'package:material_floating_search_bar/material_floating_search_bar.dart';
 
 class TabCompaniesView extends StatefulWidget {
   final Function setStateCallback;
@@ -23,9 +30,13 @@ class _TabCompaniesViewState extends State<TabCompaniesView> {
   static const TAG = 'TabCompaniesView';
   CompaniesScreenLogic logic;
 
+  List<Catalogue> rubrics = [];
+
   @override
   void initState() {
     logic = CompaniesScreenLogic(setStateCallback: setStateCallback);
+    // Прогружаем данные
+    logic.loadCatalogue();
     super.initState();
   }
 
@@ -51,23 +62,50 @@ class _TabCompaniesViewState extends State<TabCompaniesView> {
   // Обновление состояния
   void setStateCallback(Map<String, dynamic> state) {
     setState(() {
-      if (state['history'] != null) {
-        //history = state['history'];
+      if (state['rubrics'] != null) {
+        rubrics = state['rubrics'];
       }
     });
   }
 
+  Widget buildFloatingSearch() {
+    return Stack(
+      children: [
+        CompaniesFloatingSearchWidget(),
+      ],
+    );
+  }
+
+  Widget buildCatalogue() {
+    return rubrics.length == 0
+        ? CatalogueInUpdate()
+        : Column(
+            children: [
+              SIZED_BOX_H45,
+              Expanded(
+                child: ListView.builder(
+                  itemCount: rubrics.length,
+                  shrinkWrap: true,
+                  padding: EdgeInsets.symmetric(
+                    vertical: 15,
+                  ),
+                  itemBuilder: (context, index) {
+                    final item = rubrics[index];
+                    return CatRow(item);
+                  },
+                ),
+              ),
+            ],
+          );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: PAD_SYM_H10,
-      child: Column(
-        children: [
-          Container(
-            child: Text('Загружено филиалов'),
-          ),
-        ],
-      ),
+    return Stack(
+      children: [
+        buildCatalogue(),
+        buildFloatingSearch(),
+      ],
     );
   }
 }

@@ -37,8 +37,8 @@ class RosterScreenLogic extends AbstractScreenLogic {
   RosterScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
-      checkState();
-      updateNextRosterVCard(); // Не продуктивно
+      await checkState();
+      await updateNextRosterVCard(); // Не продуктивно
       //Log.d(TAG, '${t.tick}');
     });
   }

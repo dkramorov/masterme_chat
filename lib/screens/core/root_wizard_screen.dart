@@ -7,7 +7,6 @@ import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
-import 'package:masterme_chat/models/comanies_update.dart';
 import 'package:masterme_chat/screens/auth/auth.dart';
 import 'package:masterme_chat/screens/chat.dart';
 import 'package:masterme_chat/screens/core/tab_call_history_view.dart';
@@ -81,14 +80,6 @@ class _RootScreenState extends State<RootScreen> {
     rosterLogic = RosterScreenLogic(setStateCallback: setStateCallback);
     checkUserInDb(loginLogic);
     super.initState();
-
-    Future.delayed(Duration(seconds: 5), () async {
-      print('---------------->');
-      CompaniesUpate data = await CompaniesUpate.parseUpdateFile();
-      print('---------------->');
-      print(data);
-      CompaniesUpate.saveData(data);
-    });
   }
 
   @override
@@ -269,10 +260,6 @@ class _RootScreenState extends State<RootScreen> {
       }
       if (newState['curUser'] != null && newState['curUser'] != curUser) {
         curUser = newState['curUser'];
-      }
-      if (newState['pageIndex'] != null &&
-          newState['pageIndex'] != _pageIndex) {
-        _pageIndex = newState['pageIndex'];
       }
       if (newState['chatUsers'] != null) {
         Future.delayed(Duration.zero, () async {

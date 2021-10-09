@@ -1,7 +1,9 @@
 import 'dart:async';
-
+import 'package:flutter/material.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/helpers/phone_mask.dart';
+import 'package:masterme_chat/models/companies/phones.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/services/sip_connection.dart';
@@ -14,6 +16,7 @@ class CallScreenLogic extends AbstractScreenLogic {
   Timer _timer;
   Call currentCall;
   UserHistoryModel historyRow;
+  Phones curPhone;
 
   List<CallStateEnum> inCallStates = [
     CallStateEnum.STREAM,
@@ -54,7 +57,7 @@ class CallScreenLogic extends AbstractScreenLogic {
   CallScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
-      checkState();
+      await checkState();
       //Log.d(TAG, '${screenTimer.tick}');
     });
   }
@@ -185,5 +188,45 @@ class CallScreenLogic extends AbstractScreenLogic {
       'duration': duration,
     });
     historyRow = null;
+  }
+
+  String preparePhone(Phones phone) {
+    String result = '';
+    if (phone.prefix != null && phone.prefix != 0) {
+      result += phone.prefix.toString();
+    }
+    if (phone.digits != null && phone.digits != '') {
+      result += phone.digits;
+    }
+    result = result.replaceAll(RegExp('[^0-9]+'), '');
+    if (result.length == 10) {
+      result = '8$result';
+    } else if (result.length == 6) {
+      result = '83952$result';
+    } else {
+      result = '8';
+    }
+    if (result.length == 11) {
+      return phoneMaskHelper(result);
+    }
+    return result;
+  }
+
+  /* Получение аргументов на вьюхе */
+  void parseArguments(BuildContext context) {
+    // Аргументы доступны только после получения контекста
+    Future.delayed(Duration.zero, () {
+      final arguments = ModalRoute.of(context).settings.arguments as Map;
+      if (arguments != null) {
+        curPhone = arguments['curPhone'];
+        if (curPhone != null) {
+          String phoneNumber = preparePhone(curPhone);
+          Log.d(TAG, 'phoneNumber $phoneNumber');
+          setStateCallback({
+            'phoneNumber': phoneNumber,
+          });
+        }
+      }
+    });
   }
 }

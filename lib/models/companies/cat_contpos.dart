@@ -6,7 +6,13 @@ class CatContpos extends AbstractModel {
   final int catId;
   final int clientId;
 
+  static final String dbName = AbstractModel.dbCompaniesName;
   static final String tableName = 'cat_contpos';
+
+  @override
+  String getDbName() {
+    return dbName;
+  }
 
   @override
   String getTableName() {
@@ -48,8 +54,18 @@ class CatContpos extends AbstractModel {
     return CatContpos(
       id: json['id'] as int,
       position: json['position'] as int,
-      catId: json['catId'] as int,
-      clientId: json['clientId'] as int,
+      catId: json['cat_id'] as int,
+      clientId: json['client_id'] as int,
+    );
+  }
+
+  /* Перегоняем данные из базы в модельку */
+  static CatContpos toModel(Map<String, dynamic> dbItem) {
+    return CatContpos(
+      id: dbItem['id'],
+      position: dbItem['position'],
+      catId: dbItem['catId'],
+      clientId: dbItem['clientId'],
     );
   }
 }

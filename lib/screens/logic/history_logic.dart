@@ -12,7 +12,7 @@ class HistoryScreenLogic extends AbstractScreenLogic {
     checkState();
 
     this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
-      checkState();
+      await checkState();
       //Log.d(TAG, '${t.tick}');
     });
   }

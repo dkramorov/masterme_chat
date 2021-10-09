@@ -5,7 +5,13 @@ class Cats extends AbstractModel {
   final int catId;
   final int clientId;
 
+  static final String dbName = AbstractModel.dbCompaniesName;
   static final String tableName = 'cats';
+
+  @override
+  String getDbName() {
+    return dbName;
+  }
 
   @override
   String getTableName() {
@@ -43,8 +49,18 @@ class Cats extends AbstractModel {
   factory Cats.fromJson(Map<String, dynamic> json) {
     return Cats(
       id: json['id'] as int,
-      catId: json['catId'] as int,
-      clientId: json['clientId'] as int,
+      catId: json['cat_id'] as int,
+      clientId: json['client_id'] as int,
     );
   }
+
+  /* Перегоняем данные из базы в модельку */
+  static Cats toModel(Map<String, dynamic> dbItem) {
+    return Cats(
+      id: dbItem['id'],
+      catId: dbItem['catId'],
+      clientId: dbItem['clientId'],
+    );
+  }
+
 }

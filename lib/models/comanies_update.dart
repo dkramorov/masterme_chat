@@ -64,30 +64,6 @@ class CompaniesUpate {
     );
   }
 
-  /* Сохранение всего говнища в базу */
-  static Future<void> saveData(CompaniesUpate data) async {
-    List<dynamic> branches =
-        await Branches().prepareTransactionQueries(data.branches, 0, 100);
-    Branches().transaction(branches);
-
-/*
-    List<dynamic> addresses = await Addresses().prepareTransactionQueries(data.addresses);
-    List<dynamic> phones = await Phones().prepareTransactionQueries(data.phones);
-    List<dynamic> catalogue = await Catalogue().prepareTransactionQueries(data.catalogue);
-    List<dynamic> cats = await Cats().prepareTransactionQueries(data.cats);
-    List<dynamic> orgs = await Orgs().prepareTransactionQueries(data.orgs);
-    List<dynamic> catContpos = await CatContpos().prepareTransactionQueries(data.catContpos);
-    Branches().transaction(branches);
-    Addresses().transaction(addresses);
-    Phones().transaction(phones);
-    Catalogue().transaction(catalogue);
-    Cats().transaction(cats);
-    Orgs().transaction(orgs);
-    CatContpos().transaction(catContpos);
-
- */
-  }
-
   static CompaniesUpate parseResponse(String responseBody) {
     //final parsed = jsonDecode(responseBody).cast<Map<String, dynamic>>();
     //return parsed.map<Photo>((json) => Photo.fromJson(json)).toList();
@@ -100,6 +76,7 @@ class CompaniesUpate {
      тогда пробуем найти в папке его
   */
   static Future<CompaniesUpate> parseUpdateFile() async {
+    /* :param key: какой раздел загружаем в данный момент */
     final String destFolder = await SaveNetworkFile.makeAppFolder();
     final updateFilePath = destFolder + '/' + updateFName;
     Log.d(TAG, 'Using exists file $updateFilePath');
@@ -117,7 +94,6 @@ class CompaniesUpate {
     final url = '$DB_SERVER$DB_UPDATE_ENDPOINT';
     Log.d(TAG, url);
     final String destFolder = await SaveNetworkFile.makeAppFolder();
-    final fileName = url.split('/').last;
     final File dest = File(destFolder + '/' + updateFName);
     Dio dio = new Dio();
     await dio.download(

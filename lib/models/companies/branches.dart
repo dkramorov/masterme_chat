@@ -1,4 +1,5 @@
 import 'package:masterme_chat/db/database_singletone.dart';
+import 'package:masterme_chat/models/companies/addresses.dart';
 
 class Branches extends AbstractModel {
   int id;
@@ -13,7 +14,15 @@ class Branches extends AbstractModel {
   int position;
   String email;
 
+  Addresses mapAddress;
+
+  static final String dbName = AbstractModel.dbCompaniesName;
   static final String tableName = 'branches';
+
+  @override
+  String getDbName() {
+    return dbName;
+  }
 
   @override
   String getTableName() {
@@ -72,9 +81,9 @@ class Branches extends AbstractModel {
     return Branches(
       id: json['id'] as int,
       wtime: json['wtime'] as String,
-      searchTerms: json['searchTerms'] as String,
+      searchTerms: json['search_terms'] as String,
       site: json['site'] as String,
-      addressAdd: json['addressAdd'] as String,
+      addressAdd: json['address_add'] as String,
       address: json['address'] as int,
       name: json['name'] as String,
       reg: json['reg'] as int,
@@ -82,5 +91,34 @@ class Branches extends AbstractModel {
       position: json['position'] as int,
       email: json['email'] as String,
     );
+  }
+
+  /* Перегоняем данные из базы в модельку */
+  static Branches toModel(Map<String, dynamic> dbItem) {
+    return Branches(
+      id: dbItem['id'],
+      wtime: dbItem['wtime'],
+      searchTerms: dbItem['searchTerms'],
+      site: dbItem['site'],
+      addressAdd: dbItem['addressAdd'],
+      address: dbItem['address'],
+      name: dbItem['name'],
+      reg: dbItem['reg'],
+      client: dbItem['client'],
+      position: dbItem['position'],
+      email: dbItem['email'],
+    );
+  }
+
+  static Future<List<Branches>> getOrgBranches(int orgId) async {
+    final db = await openCompaniesDB();
+    final List<Map<String, dynamic>> branches = await db.query(
+      tableName,
+      where: 'client = ?',
+      whereArgs: [orgId],
+    );
+    return List.generate(branches.length, (i) {
+      return toModel(branches[i]);
+    });
   }
 }

@@ -26,7 +26,7 @@ class LoginScreenLogic extends AbstractScreenLogic {
   LoginScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
-      checkState();
+      await checkState();
       //Log.d(TAG, '${t.tick}');
     });
   }

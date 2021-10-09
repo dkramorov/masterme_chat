@@ -20,7 +20,7 @@ class ProfileScreenLogic extends AbstractScreenLogic {
   ProfileScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
-      checkState();
+      await checkState();
       //Log.d(TAG, '${t.tick}');
     });
   }

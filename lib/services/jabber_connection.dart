@@ -340,7 +340,7 @@ class ConnectionListener implements xmpp.ConnectionStateChangedListener {
         }
 
         JabberConn.vCardManager.getSelfVCard().then((vCard) {
-          if (vCard != null) {
+          if (vCard != null && JabberConn.curUser != null) {
             Future.delayed(Duration(seconds: 1), () async {
               JabberConn.curUser.updateFromVCard(vCard);
             });

@@ -24,8 +24,6 @@ class TabRosterView extends StatefulWidget {
 class _TabRosterViewState extends State<TabRosterView> {
   static const TAG = 'TabRosterView';
 
-  static const _SEARCH_ICON = 'assets/svg/bp_search_icon.svg';
-
   @override
   void initState() {
     super.initState();
@@ -103,7 +101,7 @@ class _TabRosterViewState extends State<TabRosterView> {
           child: Row(
             children: [
               SvgPicture.asset(
-                _SEARCH_ICON,
+                SEARCH_ICON,
                 height: 16,
               ),
               SIZED_BOX_W20,

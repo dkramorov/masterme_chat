@@ -37,6 +37,16 @@ class ChatDraftModel extends AbstractModel {
     return '$table{id: $id, login: $login, tuser: $tuser, msg: $msg}';
   }
 
+  /* Перегоняем данные из базы в модельку */
+  static ChatDraftModel toModel(Map<String, dynamic> dbItem) {
+    return ChatDraftModel(
+      id: dbItem['id'],
+      login: dbItem['login'],
+      tuser: dbItem['tuser'],
+      msg: dbItem['msg'],
+    );
+  }
+
   /* Очистить черновик */
   static Future<void> dropDraft(String login, String tuser) async {
     if (login == null || tuser == null) {
@@ -72,12 +82,6 @@ class ChatDraftModel extends AbstractModel {
     if (maps.isEmpty) {
       return null;
     }
-    final Map<String, dynamic> draft = maps[0];
-    return ChatDraftModel(
-      id: draft['id'],
-      login: draft['login'],
-      tuser: draft['tuser'],
-      msg: draft['msg'],
-    );
+    return toModel(maps[0]);
   }
 }

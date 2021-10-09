@@ -122,9 +122,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         children: [
           Text(
               'На ваш номер $login должен поступить звонок, прослушайте код подтверждения и введите в поле ниже'),
-          SizedBox(
-            height: 15.0,
-          ),
+          SIZED_BOX_H16,
           RoundedInputText(
             hint: 'Код подтверждения',
             onChanged: (String text) {
@@ -141,9 +139,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             keyboardType: TextInputType.number,
             defaultValue: '',
           ),
-          SizedBox(
-            height: 15.0,
-          ),
+          SIZED_BOX_H16,
           RoundedButtonWidget(
             text: Text(
               'Регистрация',
@@ -154,9 +150,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               regConfirmCodeFormSubmit();
             },
           ),
-          SizedBox(
-            height: 15.0,
-          ),
+          SIZED_BOX_H16,
         ],
       ),
     );
@@ -171,9 +165,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         children: [
           Text(
               'На ваш номер поступит звонок, прослушайте код, после завершения звонка его надо будет ввести в форму'),
-          SizedBox(
-            height: 15.0,
-          ),
+          SIZED_BOX_H16,
           RoundedInputText(
             hint: 'Ваш телефон',
             onChanged: (String text) {
@@ -193,9 +185,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             keyboardType: TextInputType.number,
             defaultValue: login,
           ),
-          SizedBox(
-            height: 15.0,
-          ),
+          SIZED_BOX_H16,
           RoundedInputText(
             hint: pageType == 'reg' ? 'Ваш пароль' : 'Новый пароль',
             onChanged: (String text) {
@@ -210,9 +200,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             },
             defaultValue: passwd,
           ),
-          SizedBox(
-            height: 15.0,
-          ),
+          SIZED_BOX_H16,
           RoundedButtonWidget(
             text: Text(
               'Запросить код',
@@ -223,9 +211,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               regFormSubmit();
             },
           ),
-          SizedBox(
-            height: 15.0,
-          ),
+          SIZED_BOX_H16,
         ],
       ),
     );
@@ -277,9 +263,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                 ],
               ),
-              SizedBox(
-                height: 15.0,
-              ),
+              SIZED_BOX_H16,
               state == 0 ? buildRegForm() : buildRegConfigrmCodeForm(),
             ],
           ),
