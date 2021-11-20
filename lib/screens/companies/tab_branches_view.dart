@@ -56,6 +56,7 @@ class _TabBranchesViewState extends State<TabBranchesView> {
         return BranchRow(
           item,
           phones: widget.company.phonesArr,
+          company: widget.company,
         );
       },
     );

@@ -1,6 +1,8 @@
+import 'dart:collection';
+
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/database_singletone.dart';
-import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/models/companies/orgs.dart';
 
 class UserHistoryModel extends AbstractModel {
   static const String TAG = 'UserHistoryModel';
@@ -12,6 +14,8 @@ class UserHistoryModel extends AbstractModel {
   String source; // от кого-то
   String dest; // кому мы наябываем
   String action; // outgoing/incoming call/chat
+  int companyId; // Ид компании (т/к компании в другой базе)
+  Orgs company; // Компанию заполняем из sql запроса
 
   static final String tableName = 'users_history';
 
@@ -28,6 +32,7 @@ class UserHistoryModel extends AbstractModel {
     this.source,
     this.dest,
     this.action,
+    this.companyId,
   });
 
   String getLogin() {
@@ -44,6 +49,7 @@ class UserHistoryModel extends AbstractModel {
       'source': source,
       'dest': dest,
       'action': action,
+      'companyId': companyId,
     };
   }
 
@@ -57,6 +63,7 @@ class UserHistoryModel extends AbstractModel {
       source: dbItem['source'],
       dest: dbItem['dest'],
       action: dbItem['action'],
+      companyId: dbItem['companyId'],
     );
   }
 
@@ -64,7 +71,8 @@ class UserHistoryModel extends AbstractModel {
   String toString() {
     final String table = getTableName();
     return '$table{id: $id, login: $login, time: $time,' +
-        ' duration: $duration, source: $source, dest: $dest, action: $action}';
+        ' duration: $duration, source: $source, dest: $dest, action: $action,' +
+        'companyId: $companyId}';
   }
 
   static Future<List<UserHistoryModel>> getAllHistory(String login) async {
@@ -76,9 +84,25 @@ class UserHistoryModel extends AbstractModel {
       whereArgs: [login],
     );
 
+    HashMap<int, Orgs> idsCompanies = HashMap();
+    for (Map<String, dynamic> item in maps) {
+      if (item['companyId'] != null && item['companyId'] != 0) {
+        idsCompanies[item['companyId']] = null;
+      }
+    }
+
+    if (idsCompanies.isNotEmpty) {
+      await Orgs.getOrgsByIds(idsCompanies);
+    }
+
     return List.generate(maps.length, (i) {
-      return toModel(maps[i]);
+      UserHistoryModel historyModel = toModel(maps[i]);
+      if (historyModel.companyId != null &&
+          historyModel.companyId != 0 &&
+          idsCompanies.containsKey(historyModel.companyId)) {
+        historyModel.company = idsCompanies[historyModel.companyId];
+      }
+      return historyModel;
     });
   }
-
 }

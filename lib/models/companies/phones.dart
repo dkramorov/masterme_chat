@@ -1,5 +1,6 @@
 import 'package:masterme_chat/db/database_singletone.dart';
 import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/helpers/phone_mask.dart';
 
 class Phones extends AbstractModel {
   int id;
@@ -51,7 +52,8 @@ class Phones extends AbstractModel {
     this.position = position;
     this.searchTerms = searchTerms;
     this.number = number;
-    this.formattedPhone = defizPhone(buildPhoneString());
+    //this.formattedPhone = defizPhone(buildPhoneString());
+    this.formattedPhone = phoneMaskHelper(buildPhoneString());
   }
 
   @override
@@ -83,12 +85,12 @@ class Phones extends AbstractModel {
     if (digit == 4) {
       return 'моб';
     }
-    return '';
+    return 'тел';
   }
 
   String buildPhoneString() {
     String result = '';
-    if (this.prefix != null) {
+    if (this.prefix != 0 && this.prefix != null) {
       result += '${this.prefix}';
     }
     if (this.digits != null) {

@@ -4,7 +4,9 @@ import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
+import 'package:masterme_chat/screens/companies/call2company_screen.dart';
 import 'package:masterme_chat/screens/logic/history_logic.dart';
+import 'package:masterme_chat/widgets/companies/company_logo.dart';
 
 class TabCallHistoryView extends StatefulWidget {
   final Function setStateCallback;
@@ -65,6 +67,17 @@ class _TabCallHistoryViewState extends State<TabCallHistoryView> {
     });
   }
 
+  Widget buildIcon(UserHistoryModel item) {
+    if (item.company != null) {
+      return CompanyLogoWidget(item.company);
+    }
+    return Icon(
+      Icons.phone_forwarded,
+      size: 40.0,
+      color: Colors.black54,
+    );
+  }
+
   ListView buildHistory() {
     final containerMsgTextWidth = MediaQuery.of(context).size.width * 0.5;
     return ListView.builder(
@@ -81,23 +94,38 @@ class _TabCallHistoryViewState extends State<TabCallHistoryView> {
           onDismissed: (direction) {},
           child: GestureDetector(
             onTap: () {
-              widget.setStateCallback({
-                'setPageview': 1,
-                'phoneFromHistory': item.dest,
-              });
+              if (item.company != null) {
+                Navigator.pushNamed(context, Call2CompanyScreen.id, arguments: {
+                  'curPhoneStr': item.dest,
+                  'curCompany': item.company,
+                });
+              } else {
+                widget.setStateCallback({
+                  'setPageview': 2,
+                  'phoneFromHistory': item.dest,
+                });
+              }
             },
             child: ListTile(
-              leading: Icon(
-                Icons.phone_forwarded,
-                size: 40.0,
-                color: Colors.black54,
-              ),
-              title: Row(
+              leading: buildIcon(item),
+              title: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  item.company != null
+                      ? Text(
+                          item.company.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : Container(),
                   Text(
                     phoneMaskHelper(item.dest),
                     style: TextStyle(
-                      fontSize: 20.0,
+                      fontSize: 18.0,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

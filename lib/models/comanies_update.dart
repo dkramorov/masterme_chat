@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/adapter.dart';
 import 'package:dio/dio.dart';
 
 import 'package:masterme_chat/constants.dart';
@@ -14,7 +15,7 @@ import 'package:masterme_chat/models/companies/cats.dart';
 import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
 
-class CompaniesUpate {
+class CompaniesUpdate {
   static const TAG = 'CompaniesUpate';
   static const updateFName = 'companies_db_helper.json';
 
@@ -26,7 +27,7 @@ class CompaniesUpate {
   final List<Orgs> orgs;
   final List<CatContpos> catContpos;
 
-  CompaniesUpate({
+  CompaniesUpdate({
     this.branches,
     this.addresses,
     this.phones,
@@ -52,8 +53,8 @@ class CompaniesUpate {
         'catContpos: $catContposLen';
   }
 
-  factory CompaniesUpate.fromJson(Map<String, dynamic> json) {
-    return CompaniesUpate(
+  factory CompaniesUpdate.fromJson(Map<String, dynamic> json) {
+    return CompaniesUpdate(
       branches: Branches.jsonFromList(json['branches'] as List<dynamic>),
       addresses: Addresses.jsonFromList(json['addresses'] as List<dynamic>),
       phones: Phones.jsonFromList(json['phones'] as List<dynamic>),
@@ -64,18 +65,16 @@ class CompaniesUpate {
     );
   }
 
-  static CompaniesUpate parseResponse(String responseBody) {
-    //final parsed = jsonDecode(responseBody).cast<Map<String, dynamic>>();
-    //return parsed.map<Photo>((json) => Photo.fromJson(json)).toList();
+  static CompaniesUpdate parseResponse(String responseBody) {
     final parsed = jsonDecode(responseBody);
-    return CompaniesUpate.fromJson(parsed);
+    return CompaniesUpdate.fromJson(parsed);
   }
 
   /* Обрабатываем файл, который только что загрузился и
      мы получили путь до него, либо если null,
      тогда пробуем найти в папке его
   */
-  static Future<CompaniesUpate> parseUpdateFile() async {
+  static Future<CompaniesUpdate> parseUpdateFile() async {
     /* :param key: какой раздел загружаем в данный момент */
     final String destFolder = await SaveNetworkFile.makeAppFolder();
     final updateFilePath = destFolder + '/' + updateFName;
@@ -90,12 +89,28 @@ class CompaniesUpate {
     return parseResponse(content);
   }
 
+  static Future<void> dropUpdate() async {
+    final String destFolder = await SaveNetworkFile.makeAppFolder();
+    final updateFilePath = File(destFolder + '/' + updateFName);
+    if (updateFilePath.existsSync()) {
+      Log.d(TAG, 'dropping ${updateFilePath.path}');
+      updateFilePath.deleteSync();
+    }
+  }
+
   static Future<void> downloadUpdate() async {
     final url = '$DB_SERVER$DB_UPDATE_ENDPOINT';
     Log.d(TAG, url);
     final String destFolder = await SaveNetworkFile.makeAppFolder();
     final File dest = File(destFolder + '/' + updateFName);
     Dio dio = new Dio();
+
+    (dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (HttpClient client) {
+      print('onHttpClientCreate entered...');
+      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      return client;
+    };
+
     await dio.download(
       url,
       dest.path,

@@ -1,3 +1,6 @@
+import 'dart:math';
+import 'package:flutter/material.dart';
+
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/database_singletone.dart';
 import 'package:masterme_chat/helpers/log.dart';
@@ -5,15 +8,16 @@ import 'package:masterme_chat/models/companies/branches.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
 
 class Orgs extends AbstractModel {
-  final int id;
-  final int rating;
-  final int branches;
-  final String name;
-  final String resume;
-  final int phones;
-  final String logo;
-  final String searchTerms;
-  final int reg;
+  int id;
+  int rating;
+  int branches;
+  String name;
+  String resume;
+  int phones;
+  String logo;
+  String searchTerms;
+  int reg;
+  Color color;
 
   List<Branches> branchesArr = [];
   List<Phones> phonesArr = [];
@@ -55,16 +59,27 @@ class Orgs extends AbstractModel {
   }
 
   Orgs({
-    this.id,
-    this.rating,
-    this.branches,
-    this.name,
-    this.resume,
-    this.phones,
-    this.logo,
-    this.searchTerms,
-    this.reg,
-  });
+    id,
+    rating,
+    branches,
+    name,
+    resume,
+    phones,
+    logo,
+    searchTerms,
+    reg,
+  }) {
+    this.id = id;
+    this.rating = rating;
+    this.branches = branches;
+    this.name = name;
+    this.resume = resume;
+    this.phones = phones;
+    this.logo = logo;
+    this.searchTerms = searchTerms;
+    this.reg = reg;
+    this.color = Colors.primaries[Random().nextInt(Colors.primaries.length)];
+  }
 
   @override
   String toString() {
@@ -139,6 +154,24 @@ class Orgs extends AbstractModel {
       return null;
     }
     return toModel(orgs[0]);
+  }
+
+  static Future<void> getOrgsByIds(Map<int, dynamic> orgIds) async {
+    // Получение компаний по айдишникам
+    // на вход получаем словарь {1: null, 2: null}
+    final db = await openCompaniesDB();
+    List<int> values = orgIds.keys.toList();
+    String args = orgIds.keys.map((e) => '?').toList().join(',');
+
+    final List<Map<String, dynamic>> orgs = await db.query(
+      tableName,
+      where: 'id IN (' + args + ')',
+      whereArgs: values,
+    );
+    for(Map<String, dynamic> org in orgs) {
+      Orgs company = toModel(org);
+      orgIds[company.id] = company;
+    }
   }
 
   static Future<List<Orgs>> searchOrgs(String query,

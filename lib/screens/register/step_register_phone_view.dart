@@ -12,7 +12,8 @@ class StepRegisterPhoneView extends StatefulWidget {
   final Function setStateCallback;
   Map<String, dynamic> userData;
 
-  StepRegisterPhoneView({this.pageController, this.setStateCallback, this.userData});
+  StepRegisterPhoneView(
+      {this.pageController, this.setStateCallback, this.userData});
 
   @override
   _StepRegisterPhoneViewState createState() => _StepRegisterPhoneViewState();
@@ -146,9 +147,7 @@ class _StepRegisterPhoneViewState extends State<StepRegisterPhoneView> {
                         },
                         formatters: [PhoneFormatter()],
                         validator: (String value) {
-                          bool match = RegExp(
-                                  r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                              .hasMatch(value);
+                          bool match = phoneMaskValidator().hasMatch(value);
                           if (value.isEmpty || !match) {
                             return 'Например, $SGN_HINT_PHONE_TEXT';
                           }

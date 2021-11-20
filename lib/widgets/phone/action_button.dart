@@ -12,14 +12,14 @@ class ActionButton extends StatefulWidget {
 
   const ActionButton(
       {Key key,
-        this.title,
-        this.subTitle = '',
-        this.icon,
-        this.onPressed,
-        this.onLongPress,
-        this.checked = false,
-        this.number = false,
-        this.fillColor})
+      this.title,
+      this.subTitle = '',
+      this.icon,
+      this.onPressed,
+      this.onLongPress,
+      this.checked = false,
+      this.number = false,
+      this.fillColor})
       : super(key: key);
 
   @override
@@ -45,55 +45,60 @@ class _ActionButtonState extends State<ActionButton> {
               fillColor: widget.fillColor != null
                   ? widget.fillColor
                   : (widget.checked ? Colors.blue : Colors.white),
-              elevation: 10.0,
+              elevation: 8.0,
               shape: CircleBorder(),
               child: Padding(
-                padding: const EdgeInsets.all(15.0),
+                padding: const EdgeInsets.all(20.0),
                 child: widget.number
                     ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Text('${widget.title}',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: widget.fillColor != null
-                                ? widget.fillColor
-                                : Colors.grey[500],
-                          )),
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Text(
+                            '${widget.title}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: widget.fillColor != null
+                                  ? widget.fillColor
+                                  : Colors.grey[500],
+                            ),
+                          ),
+                          /*
                       Text('${widget.subTitle}'.toUpperCase(),
                           style: TextStyle(
                             fontSize: 8,
                             color: widget.fillColor != null
                                 ? widget.fillColor
                                 : Colors.grey[500],
-                          ))
-                    ])
+                          ),)
+                       */
+                        ],
+                      )
                     : Icon(
-                  widget.icon,
-                  size: 30.0,
-                  color: widget.fillColor != null
-                      ? Colors.white
-                      : (widget.checked ? Colors.white : Colors.blue),
-                ),
+                        widget.icon,
+                        size: 20.0,
+                        color: widget.fillColor != null
+                            ? Colors.white
+                            : (widget.checked ? Colors.white : Colors.blue),
+                      ),
               ),
             )),
         widget.number
             ? Container(
-            margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0))
+                margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0))
             : Container(
-          margin: EdgeInsets.symmetric(vertical: 10.0, horizontal: 2.0),
-          child: (widget.number || widget.title == null)
-              ? null
-              : Text(
-            widget.title,
-            style: TextStyle(
-              fontSize: 15.0,
-              color: widget.fillColor != null
-                  ? widget.fillColor
-                  : Colors.grey[500],
-            ),
-          ),
-        )
+                margin: EdgeInsets.symmetric(vertical: 10.0, horizontal: 2.0),
+                child: (widget.number || widget.title == null)
+                    ? null
+                    : Text(
+                        widget.title,
+                        style: TextStyle(
+                          fontSize: 15.0,
+                          color: widget.fillColor != null
+                              ? widget.fillColor
+                              : Colors.grey[500],
+                        ),
+                      ),
+              )
       ],
     );
   }

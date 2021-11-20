@@ -51,11 +51,12 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void stopListenProximitySensor() {
-      if (proximitySubscription != null) {
-        proximitySubscription.cancel();
-        proximitySubscription = null;
-      }
+    if (proximitySubscription != null) {
+      proximitySubscription.cancel();
+      proximitySubscription = null;
+    }
   }
+
   void listenProximitySensor() {
     if (proximitySubscription != null) {
       Log.d(TAG, 'proximity sensor already listening');
@@ -65,7 +66,6 @@ class _CallScreenState extends State<CallScreen> {
     proximitySubscription = proximityEvents.listen((ProximityEvent event) {
       Log.d(TAG, '$event');
     });
-
   }
 
   @override
@@ -273,9 +273,7 @@ class _CallScreenState extends State<CallScreen> {
                   },
                   formatters: [phoneFormatter],
                   validator: (String value) {
-                    bool match =
-                        RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                            .hasMatch(value);
+                    bool match = phoneMaskValidator().hasMatch(value);
                     if (value.isEmpty || !match) {
                       return 'Введите телефон, кому звоним';
                     }

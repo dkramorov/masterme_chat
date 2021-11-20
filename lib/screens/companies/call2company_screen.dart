@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:all_sensors/all_sensors.dart';
 import 'package:flutter/material.dart';
-import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
+import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/screens/logic/call_logic.dart';
+import 'package:masterme_chat/widgets/companies/company_logo.dart';
 import 'package:masterme_chat/widgets/phone/action_button.dart';
+import 'package:masterme_chat/widgets/phone/phone_helpers.dart';
 import 'package:masterme_chat/widgets/rounded_input_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -36,6 +38,8 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
   final PhoneFormatter phoneFormatter = PhoneFormatter();
 
   String phoneNumber = '8';
+  String inCallPhoneNumber = '';
+  Orgs company;
 
   TextEditingController _phoneController = new TextEditingController();
 
@@ -45,10 +49,16 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
   void initState() {
     Log.d(TAG, 'initState');
     logic = CallScreenLogic(setStateCallback: setStateCallback);
-    logic.parseArguments(context);
     if (_phoneController.text != phoneNumber) {
       _phoneController.text = phoneNumber;
     }
+    logic.parseArguments(context);
+    Future.delayed(Duration.zero).then((_) async {
+      if (mounted) {
+        logic.checkUserReg();
+        logic.checkState();
+      }
+    });
     super.initState();
   }
 
@@ -97,6 +107,9 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
         phoneNumber = state['phoneNumber'];
         _phoneController.text = phoneNumber;
       }
+      if (state['company'] != null && state['company'] != company) {
+        company = state['company'];
+      }
       if (state['inCallState'] != null && state['inCallState'] != inCallState) {
         inCallState = state['inCallState'];
         if (inCallState) {
@@ -104,6 +117,10 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
         } else {
           stopListenProximitySensor();
         }
+      }
+      if (state['inCallPhoneNumber'] != null &&
+          state['inCallPhoneNumber'] != inCallPhoneNumber) {
+        inCallPhoneNumber = state['inCallPhoneNumber'];
       }
       if (state['curUserExists'] != null &&
           state['curUserExists'] != curUserExists) {
@@ -121,7 +138,7 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
     });
   }
 
-  void _handleKeyPad(String digit) {
+  void handleKeyPad(String digit) {
     if (inCallState) {
       logic.sendDTMF(digit);
       return;
@@ -188,43 +205,6 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
     });
   }
 
-  List<Widget> _buildError() {
-    return [
-      Container(
-        padding: EdgeInsets.all(20.0),
-        child: Text(
-          'Сначала зарегистрируйтесь, чтобы звонить бесплатно',
-          style: TextStyle(
-            fontSize: 24.0,
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildNumPad() {
-    return CallScreenLogic.numPadLabels
-        .map(
-          (row) => Padding(
-        padding: const EdgeInsets.all(3),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: row
-              .map(
-                (label) => ActionButton(
-              title: '${label.keys.first}',
-              subTitle: '${label.values.first}',
-              onPressed: () => _handleKeyPad(label.keys.first),
-              number: true,
-            ),
-          )
-              .toList(),
-        ),
-      ),
-    )
-        .toList();
-  }
-
   List<Widget> buildCallButtons() {
     if (inCallState) {
       return [
@@ -272,6 +252,40 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
     ];
   }
 
+  Widget buildCompanyInfo() {
+    print(company);
+    if (company == null) {
+      return SizedBox();
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ListTile(
+            leading: CompanyLogoWidget(company),
+            title: Text(
+              company.name,
+              overflow: TextOverflow.ellipsis,
+              style: new TextStyle(
+                fontSize: 20.0,
+                color: new Color(0xFF212121),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Row(
+              children: [
+                Text(
+                  phoneNumber != null ? phoneNumber : '',
+                  style: TextStyle(fontSize: 16.0),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildDialPad() {
     return [
       Container(
@@ -294,9 +308,7 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
                   },
                   formatters: [phoneFormatter],
                   validator: (String value) {
-                    bool match =
-                    RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                        .hasMatch(value);
+                    bool match = phoneMaskValidator().hasMatch(value);
                     if (value.isEmpty || !match) {
                       return 'Введите телефон, кому звоним';
                     }
@@ -316,7 +328,7 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
-          children: _buildNumPad(),
+          children: buildNumPad(handleKeyPad),
         ),
       ),
       Container(
@@ -336,6 +348,7 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text(inCallPhoneNumber),
             Text(inCallTime),
           ],
         ),
@@ -345,13 +358,6 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Future.delayed(Duration.zero).then((_) async {
-      if (mounted) {
-        logic.checkUserReg();
-        logic.checkState();
-      }
-    });
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -359,25 +365,19 @@ class _Call2CompanyScreenState extends State<Call2CompanyScreen> {
         ),
       ),
       body: Container(
-        padding: PAD_SYM_H10,
-        child: Container(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    padding: EdgeInsets.symmetric(vertical: 15.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: curUserExists ? _buildDialPad() : _buildError(),
-                    ),
-                  ),
-                ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: <Widget>[
+              buildCompanyInfo(),
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 15.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: curUserExists ? _buildDialPad() : buildPhoneUnregisterError(),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

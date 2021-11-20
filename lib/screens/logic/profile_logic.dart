@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:masterme_chat/constants.dart';
+import 'package:masterme_chat/db/settings_model.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/save_network_file.dart';
@@ -154,5 +155,11 @@ class ProfileScreenLogic extends AbstractScreenLogic {
           await UserChatModel.getByLogin(JabberConn.curUser.login);
       JabberConn.vCardManager.updateVCard(JabberConn.curUser.toVCard());
     }
+  }
+
+  Future<String> getUpdateVersion() async {
+    // Получение версии базы данных
+    int version = await SettingsModel.getUpdateVersion();
+    return '$version';
   }
 }

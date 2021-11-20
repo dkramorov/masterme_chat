@@ -2,12 +2,28 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/screens/logic/call_logic.dart';
 import 'package:sip_ua/sip_ua.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:masterme_chat/constants.dart';
 
+
 class SipConnection implements SipUaHelperListener {
   static const String TAG = 'SipConnection';
+  bool inCallState;
+
+  static List<CallStateEnum> inCallStates = [
+    CallStateEnum.STREAM,
+    CallStateEnum.UNMUTED,
+    CallStateEnum.MUTED,
+    CallStateEnum.CONNECTING,
+    CallStateEnum.PROGRESS,
+    CallStateEnum.ACCEPTED,
+    CallStateEnum.CONFIRMED,
+    CallStateEnum.HOLD,
+    CallStateEnum.UNHOLD,
+    CallStateEnum.CALL_INITIATION,
+  ];
 
 
   static final SipConnection _singleton = SipConnection._internal();
@@ -16,11 +32,12 @@ class SipConnection implements SipUaHelperListener {
   }
   SipConnection._internal();
 
-
   SIPUAHelper helper;
   String userAgent;
   RegistrationState registerState;
   Call call;
+  String inCallPhoneNumber = ''; // Чтобы подписывать куда звонок идет сейчас
+  int inCallTime = 0; // Продолжительность звонка
 
   RTCVideoRenderer localRenderer = RTCVideoRenderer();
   RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
@@ -94,6 +111,13 @@ class SipConnection implements SipUaHelperListener {
 
   void _startTimer() {
     timer = Timer.periodic(Duration(seconds: 1), (Timer timer) {
+      if (call != null) {
+        // Если мы в звонке
+        inCallState = inCallStates.contains(call.state);
+        inCallTime += 1;
+      } else {
+        inCallState = false;
+      }
       Duration duration = Duration(seconds: timer.tick);
       timeLabel = [duration.inMinutes, duration.inSeconds]
           .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
@@ -114,6 +138,7 @@ class SipConnection implements SipUaHelperListener {
 
     if (callState.state == CallStateEnum.CALL_INITIATION) {
       this.call = call;
+      inCallTime = 0;
     }
 
     if (callState.state == CallStateEnum.HOLD ||
@@ -145,7 +170,8 @@ class SipConnection implements SipUaHelperListener {
         break;
       case CallStateEnum.ENDED:
       case CallStateEnum.FAILED:
-        this.call = call;
+        CallScreenLogic.callEnded(inCallTime);
+        inCallState = false;
         break;
       case CallStateEnum.UNMUTED:
       case CallStateEnum.MUTED:
@@ -196,7 +222,6 @@ class SipConnection implements SipUaHelperListener {
       }
     }
     call = null;
-    timer.cancel();
   }
 
   void handleAccept() {
@@ -264,4 +289,5 @@ class SipConnection implements SipUaHelperListener {
   @override
   void transportStateChanged(TransportState state) {
   }
+
 }

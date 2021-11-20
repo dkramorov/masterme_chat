@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/widgets/rounded_button_widget.dart';
+import 'package:masterme_chat/constants.dart';
 
 class BottomModalochka extends StatelessWidget {
   @override
@@ -27,7 +28,7 @@ class BottomModalochka extends StatelessWidget {
                     'Добавить',
                     style: TextStyle(color: Colors.white),
                   ),
-                  color: Colors.green,
+                  color: kPrimaryColor,
                   onPressed: () {},
                 ),
               ],

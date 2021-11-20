@@ -69,6 +69,32 @@ class SettingsModel extends AbstractModel {
     }
   }
 
+  /* Получаем версию обновления из настроек */
+  static Future<int> getUpdateVersion() async {
+    SettingsModel updateVersionSetting =
+    await SettingsModel.getByAttrKey('update', 'version');
+    if (updateVersionSetting != null) {
+      return int.parse(updateVersionSetting.value);
+    }
+    return 0;
+  }
+
+  /* Сохраняем версию обновления в насктройки */
+  static Future<void> setUpdateVersion(int version) async {
+    SettingsModel updateVersionSetting =
+    await SettingsModel.getByAttrKey('update', 'version');
+    if (updateVersionSetting == null) {
+      updateVersionSetting = SettingsModel(
+        attr: 'update',
+        key: 'version',
+        value: '$version',
+      );
+    } else {
+      updateVersionSetting.value = '$version';
+    }
+    updateVersionSetting.insert2Db();
+  }
+
   // A method that retrieves all from the settings table.
   static Future<List<SettingsModel>> getAllSettings() async {
     // Get a reference to the database.

@@ -103,9 +103,7 @@ class _SignInFormState extends State<SignInForm> {
               },
               formatters: [PhoneFormatter()],
               validator: (String value) {
-                bool match =
-                    RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                        .hasMatch(value);
+                bool match = phoneMaskValidator().hasMatch(value);
                 if (value.isEmpty || !match) {
                   return 'Например, $SGN_HINT_PHONE_TEXT';
                 }

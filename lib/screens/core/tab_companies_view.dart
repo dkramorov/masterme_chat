@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/models/companies/catalogue.dart';
-import 'package:masterme_chat/models/companies/search.dart';
-import 'package:masterme_chat/screens/companies/companies_listing_screen.dart';
 import 'package:masterme_chat/screens/logic/companies_logic.dart';
 import 'package:masterme_chat/widgets/companies/cat_row.dart';
 import 'package:masterme_chat/widgets/companies/catalogue_in_update.dart';
 import 'package:masterme_chat/widgets/companies/floating_search_widget.dart';
-import 'package:material_floating_search_bar/material_floating_search_bar.dart';
 
 class TabCompaniesView extends StatefulWidget {
   final Function setStateCallback;

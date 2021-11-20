@@ -58,7 +58,11 @@ class _TabCompanyViewState extends State<TabCompanyView> {
       for (Branches branch in widget.company.branchesArr) {
         result.add(Divider());
         // Филиал с телефонами
-        result.add(BranchRow(branch, phones: widget.company.phonesArr));
+        result.add(BranchRow(
+          branch,
+          phones: widget.company.phonesArr,
+          company: widget.company,
+        ));
       }
     }
     return Column(
@@ -84,7 +88,9 @@ class _TabCompanyViewState extends State<TabCompanyView> {
                   Visibility(
                     visible: widget.company.resume != null,
                     child: Text(
-                      widget.company.resume != null ? widget.company.resume : '',
+                      widget.company.resume != null
+                          ? widget.company.resume
+                          : '',
                     ),
                   ),
                   Row(

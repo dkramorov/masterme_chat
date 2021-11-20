@@ -6,6 +6,7 @@ List<String> companiesSQLHelper() {
       'id integer primary key autoincrement not null,' +
       ' name text,' +
       ' count integer,' +
+      ' icon text,' +
       ' searchTerms text' +
       ')';
   queries.add(catalogueQuery);

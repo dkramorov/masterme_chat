@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
 import 'package:masterme_chat/screens/companies/call2company_screen.dart';
 
 class PhoneRow extends StatelessWidget {
 
   final Phones phone;
+  final Orgs company;
 
-  PhoneRow(this.phone);
+  PhoneRow(this.phone, {this.company});
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +17,7 @@ class PhoneRow extends StatelessWidget {
       onTap: () {
         Navigator.pushNamed(context, Call2CompanyScreen.id, arguments: {
           'curPhone': phone,
+          'curCompany': company,
         });
       },
       child: Card(

@@ -74,16 +74,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     final confirm =
         await RegistrationModel.confirmRegistration(login, confirmCode);
     if (confirm != null && confirm.message != null) {
-      if(confirm.code == RegistrationModel.CODE_PASSWD_CHANGED) {
+      if (confirm.code == RegistrationModel.CODE_PASSWD_CHANGED) {
         openInfoDialog(context, userConfirmed, 'Ответ от сервера',
             confirm.message, 'Понятно');
-          return;
-      } else if(confirm.code == RegistrationModel.CODE_REGISTRATION_SUCCESS) {
+        return;
+      } else if (confirm.code == RegistrationModel.CODE_REGISTRATION_SUCCESS) {
         openInfoDialog(context, userConfirmed, 'Ответ от сервера',
             confirm.message, 'Понятно');
         return;
       }
-
     }
     closeHUD();
   }
@@ -175,9 +174,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             },
             formatters: [PhoneFormatter()],
             validator: (String value) {
-              bool match =
-                  RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                      .hasMatch(value);
+              bool match = phoneMaskValidator().hasMatch(value);
               if (value.isEmpty || !match) {
                 return 'Ваш телефон';
               }

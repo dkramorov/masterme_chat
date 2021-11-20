@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "939159688967",
+    "project_id": "project-7543356362553611069",
+    "storage_bucket": "project-7543356362553611069.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939159688967:android:408d999138bbc5ce39d7a2",
+        "android_client_info": {
+          "package_name": "jocker.pjsip"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "939159688967-t907d2psgtircgdu6u04r6idb54f94t0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSPVlHQAqi-6gx670aUYz7LOvNb5DBN5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "939159688967-t907d2psgtircgdu6u04r6idb54f94t0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "939159688967-jr6gtlngmv6s6f4elmbemu6oe5a942oq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "jocker.pjsip"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

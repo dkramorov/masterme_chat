@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:masterme_chat/db/chat_message_model.dart';
 import 'package:masterme_chat/db/companies_sql_helper.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
+import 'package:masterme_chat/models/companies/catalogue.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -8,10 +10,15 @@ import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/db/settings_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
-
-import 'package:masterme_chat/constants.dart';
-
 import 'chat_draft_model.dart';
+
+
+const DB_VERSION = 32; // Версия базы данных
+
+/*
+https://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
+https://www.sqlite.org/limits.html
+*/
 
 /* Вспомогательный класс для создания любой модели для базы данных */
 class AbstractModel {
@@ -19,7 +26,9 @@ class AbstractModel {
   static final String tableName = 'test';
   static final String dbName = 'settings.db';
 
-  /* Companies database */
+  /* Companies database
+
+  */
   static final String dbCompaniesName = 'companies.db';
 
   String getDbName() {
@@ -160,17 +169,51 @@ class AbstractModel {
   */
   Future<void> transaction(List<dynamic> queriesWithParams) async {
     final tableName = getTableName();
+
+    if (queriesWithParams.isEmpty) {
+      Log.d('transaction $tableName', 'empty');
+      return;
+    }
     final db = await selectOpenDb();
-    Log.d('transaction ${db.path.split("/").last}.$tableName',
-        'queries count: ${queriesWithParams.length}');
+
+    final elapser = Stopwatch();
+    elapser.start();
+
+    String query = queriesWithParams[0];
+    List<dynamic> params = queriesWithParams[1];
+
     await db.transaction((txn) async {
-      for (List<dynamic> queryWithParams in queriesWithParams) {
-        String query = queryWithParams[0];
-        List<dynamic> params = queryWithParams[1] as List<dynamic>;
-        int count = await txn.rawInsert(query, params);
-        //Log.d('transaction $tableName', 'inserted $count for query: $query, with params $params');
+      int count = await txn.rawInsert(query, params);
+      //Log.d('transaction $tableName', 'inserted $count for query: $query, with params $params');
+    });
+    elapser.stop();
+    Log.d('transaction ${db.path.split("/").last}.$tableName',
+        'queries count: ${params.length}, elapsed ${elapser.elapsed.inMilliseconds}');
+  }
+
+  Future<void> massTransaction(List<dynamic> pages) async {
+    /* Массовая вставка постранично разбитых запросов разом,
+       тоже самое что transaction, только берем сразу много queriesWithParams
+       pages = [queriesWithParams = [[query, params], [query, params], ...]]
+    */
+    final elapser = Stopwatch();
+    elapser.start();
+    final db = await selectOpenDb();
+    final tableName = getTableName();
+    await db.transaction((txn) async {
+      for (List<dynamic> page in pages) {
+        if (page.isEmpty) {
+          Log.d('transaction $tableName', 'empty');
+          continue;
+        }
+        String query = page[0];
+        List<dynamic> params = page[1];
+        await txn.rawInsert(query, params);
       }
     });
+    elapser.stop();
+    Log.d('transaction ${db.path.split("/").last}.$tableName',
+        ', elapsed ${elapser.elapsed.inMilliseconds}');
   }
 
   /* Для сохранения всего говнища в базу,
@@ -181,39 +224,33 @@ class AbstractModel {
      Если большой массив, надо делать постранично (start, end)
   */
   Future<List<dynamic>> prepareTransactionQueries(
-      dynamic models, int start, int end) async {
+      List<dynamic> models, int start, int end) async {
     List<dynamic> result = [];
+    if (models.length == 0) {
+      return result;
+    }
     final tableName = getTableName();
     final keys = models[0].toMap().keys;
-    String paramsPlaceholder = ('?, ' * (keys.length - 1)) + '?';
+    String paramsPlaceholder = '(' + ('?, ' * (keys.length - 1)) + '?' + ')';
     String paramsNames = keys.join(',');
-    String query =
-        'INSERT OR REPLACE INTO $tableName ($paramsNames) VALUES($paramsPlaceholder)';
+    List<String> paramsPlaceholders = [];
+    List<dynamic> queryValues = []; // all values in the list
 
-    int index = 0;
+    String query = 'INSERT OR REPLACE INTO $tableName ($paramsNames) VALUES';
 
-    for (var model in models) {
-      List<dynamic> queryParams = [];
+    if (end > models.length) {
+      end = models.length;
+    }
+    List<dynamic> curSlice = models.sublist(start, end);
+    for (var model in curSlice) {
+      paramsPlaceholders.add(paramsPlaceholder); // Добавляем ?,?,? на каждую запись
       Map<String, dynamic> mapa = model.toMap();
       for (String paramName in keys) {
-        queryParams.add(mapa[paramName]);
+        // Все пихаем в длинный список
+        queryValues.add(mapa[paramName]);
       }
-      List<dynamic> row = [query, queryParams];
-
-      /* Пропускаем если index до start
-         завершаем если index после end
-      */
-      index += 1;
-      if (start > index) {
-        continue;
-      }
-      if (end > 0 && index >= end) {
-        break;
-      }
-
-      result.add(row);
     }
-    return result;
+    return [query + paramsPlaceholders.join(','), queryValues];
   }
 }
 
@@ -276,6 +313,7 @@ Future<Database> openDB() async {
   final String userHistorySource = 'source text';
   final String userHistoryDest = 'dest text';
   final String userHistoryAction = 'action text';
+  final String userHistoryCompanyId = 'companyId int';
   final String createTableUserHistoryModel = 'CREATE TABLE IF NOT EXISTS' +
       ' ${UserHistoryModel.tableName}(' +
       'id INTEGER PRIMARY KEY, login TEXT' +
@@ -284,7 +322,10 @@ Future<Database> openDB() async {
       ', $userHistorySource' +
       ', $userHistoryDest' +
       ', $userHistoryAction' +
+      ', $userHistoryCompanyId' +
       ')';
+  final String alterTableUserHistoryAddCompanyId =
+      'ALTER TABLE ${UserHistoryModel.tableName} add $userHistoryCompanyId';
 
   /* UserChatModel */
   final String userChatLastLogin = 'lastLogin int';
@@ -377,6 +418,18 @@ Future<Database> openDB() async {
       }
       if (oldVersion <= 27) {
         companiesSQL(db);
+      }
+      if (oldVersion <= 28) {
+        db.execute(alterTableUserHistoryAddCompanyId);
+      }
+      if (oldVersion <= 32) {
+        final companiesDB = openCompaniesDB();
+        companiesDB.then((dbinstance){
+          final String icon = 'icon text';
+          final String alterTableCatalogueAddIcon =
+              'ALTER TABLE ${Catalogue.tableName} add $icon';
+          dbinstance.execute(alterTableCatalogueAddIcon);
+        });
       }
     },
     // Set the version. This executes the onCreate function and provides a

@@ -429,40 +429,40 @@ class _RootScreenState extends State<RootScreen> {
 
 class NavigationData {
   static List<dynamic> nav = [
-        {
-          'icon': Icons.domain,
-          'index': 0,
-          'label': 'Каталог',
-          'tooltip': 'Каталог',
-          'title': 'Каталог компаний',
-        },
-        {
-          'icon': Icons.chat_outlined,
-          'index': 1,
-          'label': 'Чат',
-          'tooltip': 'Чат',
-          'title': 'Чат',
-        },
-        {
-          'icon': Icons.phone_android,
-          'index': 2,
-          'label': 'Позвонить',
-          'tooltip': 'Бесплатные звонки',
-          'title': 'Бесплатный звонок',
-        },
-        {
-          'icon': Icons.phone_forwarded,
-          'index': 3,
-          'label': 'История',
-          'tooltip': 'История звонков',
-          'title': 'История звонков',
-        },
-        {
-          'icon': Icons.settings,
-          'index': 4,
-          'label': 'Профиль',
-          'tooltip': 'Профиль',
-          'title': 'Ваш профиль',
-        },
-      ];
+    {
+      'icon': Icons.domain,
+      'index': 0,
+      'label': 'Каталог',
+      'tooltip': 'Каталог',
+      'title': 'Каталог компаний',
+    },
+    {
+      'icon': Icons.chat_outlined,
+      'index': 1,
+      'label': 'Чат',
+      'tooltip': 'Чат',
+      'title': 'Чат',
+    },
+    {
+      'icon': Icons.phone_android,
+      'index': 2,
+      'label': 'Позвонить',
+      'tooltip': 'Бесплатные звонки',
+      'title': 'Бесплатный звонок',
+    },
+    {
+      'icon': Icons.phone_forwarded,
+      'index': 3,
+      'label': 'История',
+      'tooltip': 'История звонков',
+      'title': 'История звонков',
+    },
+    {
+      'icon': Icons.settings,
+      'index': 4,
+      'label': 'Профиль',
+      'tooltip': 'Профиль',
+      'title': 'Ваш профиль',
+    },
+  ];
 }

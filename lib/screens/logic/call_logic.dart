@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
+import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/screens/logic/default_logic.dart';
@@ -11,25 +12,11 @@ import 'package:sip_ua/sip_ua.dart';
 
 class CallScreenLogic extends AbstractScreenLogic {
   static const TAG = 'CallScreenLogic';
-  SipConnection sipConnection;
-  String inCallTime = '00:00';
-  Timer _timer;
-  Call currentCall;
-  UserHistoryModel historyRow;
-  Phones curPhone;
 
-  List<CallStateEnum> inCallStates = [
-    CallStateEnum.STREAM,
-    CallStateEnum.UNMUTED,
-    CallStateEnum.MUTED,
-    CallStateEnum.CONNECTING,
-    CallStateEnum.PROGRESS,
-    CallStateEnum.ACCEPTED,
-    CallStateEnum.CONFIRMED,
-    CallStateEnum.HOLD,
-    CallStateEnum.UNHOLD,
-    CallStateEnum.CALL_INITIATION,
-  ];
+  SipConnection sipConnection;
+  Call currentCall;
+  static UserHistoryModel historyRow;
+  Orgs curCompany;
 
   static final List<List<Map<String, String>>> numPadLabels = [
     [
@@ -56,7 +43,7 @@ class CallScreenLogic extends AbstractScreenLogic {
 
   CallScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
-    this.screenTimer = Timer.periodic(Duration(seconds: 2), (Timer t) async {
+    this.screenTimer = Timer.periodic(Duration(seconds: 1), (Timer t) async {
       await checkState();
       //Log.d(TAG, '${screenTimer.tick}');
     });
@@ -68,6 +55,9 @@ class CallScreenLogic extends AbstractScreenLogic {
       Log.d(TAG, 'new sipConnection with userAgent $userAgent');
       sipConnection = SipConnection();
       sipConnection.init(userAgent);
+      setStateCallback({
+        'curUserExists': true,
+      });
     }
   }
 
@@ -78,22 +68,17 @@ class CallScreenLogic extends AbstractScreenLogic {
 
   @override
   Future<void> checkState() async {
-    // Состояние не поменялось
-    if (JabberConn.loggedIn == loggedIn && JabberConn.curUser != null) {
-      return;
+    if (sipConnection != null && sipConnection.inCallState) {
+      Duration duration = Duration(seconds: sipConnection.inCallTime);
+      String inCallTime = [duration.inMinutes, duration.inSeconds]
+          .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
+          .join(':');
+      setStateCallback({
+        'inCallState': sipConnection.inCallState,
+        'inCallTime': inCallTime,
+        'inCallPhoneNumber': sipConnection.inCallPhoneNumber,
+      });
     }
-    bool inCallState = false;
-    if (sipConnection != null) {
-      inCallState = sipConnection.call != null &&
-          inCallStates.contains(sipConnection.call.state);
-      if (!inCallState && _timer != null) {
-        callEnded(_timer.tick);
-        _timer.cancel();
-      } else if (inCallState && !_timer.isActive) {
-        _startTimer();
-      }
-    }
-    setStateCallback({'inCallState': inCallState});
   }
 
   Future<void> checkUserReg() async {
@@ -103,47 +88,31 @@ class CallScreenLogic extends AbstractScreenLogic {
       return;
     } else if (JabberConn.curUser != null) {
       createSipConnection(JabberConn.curUser.login);
-      setStateCallback({'curUserExists': true});
     }
-  }
-
-  Future<void> _startTimer() async {
-    if (_timer != null) {
-      _timer.cancel();
-      _timer = null;
-    }
-
-    _timer = Timer.periodic(Duration(seconds: 1), (Timer timer) async {
-      Duration duration = Duration(seconds: timer.tick);
-      inCallTime = [duration.inMinutes, duration.inSeconds]
-          .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
-          .join(':');
-      setStateCallback({'inCallTime': inCallTime});
-    });
   }
 
   void makeCall(String phoneNumber) {
-
     String digits = phoneNumber.replaceAll(RegExp('[^0-9]+'), '');
     sipConnection.handleCall(digits);
-
+    sipConnection.inCallPhoneNumber = phoneNumber;
     setStateCallback({
       'inCallState': true,
       'inCallTime': '00:00',
+      'inCallPhoneNumber': phoneNumber,
     });
-    _startTimer();
+
     // Записываем в историю
-    call2History(digits);
+    if (curCompany != null) {
+      call2History(digits, companyId: curCompany.id);
+    } else {
+      call2History(digits);
+    }
   }
 
   void hangup() {
     if (sipConnection != null) {
       sipConnection.handleHangup();
       setStateCallback({'inCallState': false});
-    }
-    if (_timer != null) {
-      callEnded(_timer.tick);
-      _timer.cancel();
     }
   }
 
@@ -169,25 +138,26 @@ class CallScreenLogic extends AbstractScreenLogic {
     }
   }
 
-  void call2History(String dest) {
-    currentCall = sipConnection.call;
-    historyRow = UserHistoryModel(
+  static Future<void> call2History(String dest, {int companyId}) async {
+    CallScreenLogic.historyRow = UserHistoryModel(
       login: JabberConn.curUser.login,
       time: DateTime.now().toIso8601String(),
       dest: dest,
       action: 'outgoing_call',
+      companyId: companyId,
     );
-    historyRow.insert2Db();
+    CallScreenLogic.historyRow.insert2Db();
   }
 
-  Future<void> callEnded(int duration) async {
-    if (historyRow == null || historyRow.id == null) {
+  static Future<void> callEnded(int duration) async {
+    if (CallScreenLogic.historyRow == null ||
+        CallScreenLogic.historyRow.id == null) {
       return;
     }
-    historyRow.updatePartial(historyRow.id, {
+    CallScreenLogic.historyRow.updatePartial(CallScreenLogic.historyRow.id, {
       'duration': duration,
     });
-    historyRow = null;
+    CallScreenLogic.historyRow = null;
   }
 
   String preparePhone(Phones phone) {
@@ -199,13 +169,16 @@ class CallScreenLogic extends AbstractScreenLogic {
       result += phone.digits;
     }
     result = result.replaceAll(RegExp('[^0-9]+'), '');
-    if (result.length == 10) {
+    if (result.length == 11) {
+      // do nothing
+    } else if (result.length == 10) {
       result = '8$result';
     } else if (result.length == 6) {
       result = '83952$result';
     } else {
       result = '8';
     }
+
     if (result.length == 11) {
       return phoneMaskHelper(result);
     }
@@ -218,12 +191,28 @@ class CallScreenLogic extends AbstractScreenLogic {
     Future.delayed(Duration.zero, () {
       final arguments = ModalRoute.of(context).settings.arguments as Map;
       if (arguments != null) {
-        curPhone = arguments['curPhone'];
+        String phoneNumber;
+        Phones curPhone = arguments['curPhone'];
         if (curPhone != null) {
-          String phoneNumber = preparePhone(curPhone);
-          Log.d(TAG, 'phoneNumber $phoneNumber');
+          phoneNumber = preparePhone(curPhone);
+          Log.d(TAG, '--- parsedArgument phoneNumber $phoneNumber');
           setStateCallback({
             'phoneNumber': phoneNumber,
+          });
+        }
+        String curPhoneStr = arguments['curPhoneStr'];
+        if (curPhoneStr != null) {
+          phoneNumber = phoneMaskHelper(curPhoneStr);
+          Log.d(TAG, '--- parsedArgument phoneNumberStr $phoneNumber');
+          setStateCallback({
+            'phoneNumber': phoneNumber,
+          });
+        }
+        curCompany = arguments['curCompany'];
+        if (curCompany != null) {
+          Log.d(TAG, '--- parsedArgument company $curCompany');
+          setStateCallback({
+            'company': curCompany,
           });
         }
       }

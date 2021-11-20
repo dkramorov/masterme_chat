@@ -141,12 +141,11 @@ class _LoginScreenState extends State<LoginScreen> {
             // Обязательно, иначе
             // setState() or markNeedsBuild called during build
             Future.delayed(Duration.zero, () async {
-              Navigator.pushNamed(
-                  context, RosterScreen.id, arguments: logic.getPushArguments());
+              Navigator.pushNamed(context, RosterScreen.id,
+                  arguments: logic.getPushArguments());
             });
           }
         }
-
       }
       if (state['login'] != null && state['login'] != login) {
         login = state['login'];
@@ -193,9 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
             },
             formatters: [PhoneFormatter()],
             validator: (String value) {
-              bool match =
-                  RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                      .hasMatch(value);
+              bool match = phoneMaskValidator().hasMatch(value);
               if (value.isEmpty || !match) {
                 return 'Ваш телефон';
               }

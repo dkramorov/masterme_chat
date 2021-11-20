@@ -68,23 +68,31 @@ class _TabProfileViewState extends State<TabProfileView> {
     name = JabberConn.curUser.name != null ? JabberConn.curUser.name : '';
     nameController.text = name;
   }
+
   void setEmail() {
     email = JabberConn.curUser.email != null ? JabberConn.curUser.email : '';
     emailController.text = email;
   }
+
   void setBirthday() {
-    birthday = JabberConn.curUser.birthday != null ? JabberConn.curUser.birthday : '';
+    birthday =
+        JabberConn.curUser.birthday != null ? JabberConn.curUser.birthday : '';
     birthdayController.text = birthday;
   }
 
   void setStateCallback(Map<String, dynamic> newState) {
     setState(() {
-      if (newState['loggedIn'] != null && newState['loggedIn'] != loggedIn && JabberConn.curUser != null) {
-        photo = JabberConn.curUser.photo != null ? JabberConn.curUser.photo : DEFAULT_AVATAR;
+      if (newState['loggedIn'] != null &&
+          newState['loggedIn'] != loggedIn &&
+          JabberConn.curUser != null) {
+        photo = JabberConn.curUser.photo != null
+            ? JabberConn.curUser.photo
+            : DEFAULT_AVATAR;
         setName();
         setEmail();
         setBirthday();
-        gender = JabberConn.curUser.gender != null ? JabberConn.curUser.gender : 1;
+        gender =
+            JabberConn.curUser.gender != null ? JabberConn.curUser.gender : 1;
       }
       if (newState['photo'] != null && newState['photo'] != photo) {
         photo = newState['photo'];
@@ -222,7 +230,7 @@ class _TabProfileViewState extends State<TabProfileView> {
                                 Text(
                                   'Персональная информация',
                                   style: TextStyle(
-                                    fontSize: 19.0,
+                                    fontSize: 17.0,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -429,7 +437,28 @@ class _TabProfileViewState extends State<TabProfileView> {
                     color: kDisabledButtonColor,
                   ),
                 ),
-              )
+              ),
+              SIZED_BOX_H04,
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(right: 30.0),
+                alignment: Alignment.centerRight,
+                child: FutureBuilder<String>(
+                    future: logic.getUpdateVersion(),
+                    builder:
+                        (BuildContext context, AsyncSnapshot<String> snapshot) {
+                      if (snapshot.hasData) {
+                        return Text(
+                          'Версия бд: ${snapshot.data}',
+                          style: TextStyle(
+                            color: kDisabledButtonColor,
+                          ),
+                        );
+                      } else {
+                        return Text('');
+                      }
+                    }),
+              ),
             ],
           ),
         ],

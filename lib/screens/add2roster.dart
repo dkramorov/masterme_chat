@@ -39,7 +39,8 @@ class _Add2RosterScreenState extends State<Add2RosterScreen> {
     }
     _formKey.currentState.save();
 
-    final fullLogin = newUser.replaceAll(RegExp('[^0-9]+'), '') + '@' + JABBER_SERVER;
+    final fullLogin =
+        newUser.replaceAll(RegExp('[^0-9]+'), '') + '@' + JABBER_SERVER;
     var newUserJid = xmpp.Jid.fromFullJid(fullLogin);
     JabberConn.rosterManager.addRosterItem(xmpp.Buddy(newUserJid));
     Navigator.pop(context, true);
@@ -100,9 +101,7 @@ class _Add2RosterScreenState extends State<Add2RosterScreen> {
                            */
                           formatters: [PhoneFormatter()],
                           validator: (String value) {
-                            bool match =
-                            RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                                .hasMatch(value);
+                            bool match = phoneMaskValidator().hasMatch(value);
                             if (value.isEmpty || !match) {
                               return 'Ваш телефон';
                             }

@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/models/companies/branches.dart';
+import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
 import 'package:masterme_chat/widgets/companies/phone_row.dart';
 
 class BranchRow extends StatelessWidget {
   final Branches branch;
   final List<Phones> phones;
+  final Orgs company;
 
-  BranchRow(this.branch, {this.phones});
+  BranchRow(this.branch, {this.phones, this.company});
 
   Column buildPhonesRows() {
     List<Widget> result = [];
     if (phones != null) {
       for (Phones phone in phones) {
         if (phone.branch == branch.id) {
-          result.add(PhoneRow(phone));
+          result.add(PhoneRow(phone, company: company,));
         }
       }
     }

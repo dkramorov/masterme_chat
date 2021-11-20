@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:all_sensors/all_sensors.dart';
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/fonts/funtya.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/screens/logic/call_logic.dart';
 import 'package:masterme_chat/widgets/phone/action_button.dart';
+import 'package:masterme_chat/widgets/phone/phone_helpers.dart';
 import 'package:masterme_chat/widgets/rounded_input_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -36,6 +38,7 @@ class _TabCallViewState extends State<TabCallView> {
   final PhoneFormatter phoneFormatter = PhoneFormatter();
 
   String phoneNumber = '8';
+  String inCallPhoneNumber = '';
 
   TextEditingController _phoneController = new TextEditingController();
 
@@ -100,6 +103,10 @@ class _TabCallViewState extends State<TabCallView> {
           stopListenProximitySensor();
         }
       }
+      if (state['inCallPhoneNumber'] != null &&
+          state['inCallPhoneNumber'] != inCallPhoneNumber) {
+        inCallPhoneNumber = state['inCallPhoneNumber'];
+      }
       if (state['curUserExists'] != null &&
           state['curUserExists'] != curUserExists) {
         curUserExists = state['curUserExists'];
@@ -116,7 +123,7 @@ class _TabCallViewState extends State<TabCallView> {
     });
   }
 
-  void _handleKeyPad(String digit) {
+  void handleKeyPad(String digit) {
     if (inCallState) {
       logic.sendDTMF(digit);
       return;
@@ -181,43 +188,6 @@ class _TabCallViewState extends State<TabCallView> {
       phoneNumber = '8';
       _phoneController.text = '8';
     });
-  }
-
-  List<Widget> _buildError() {
-    return [
-      Container(
-        padding: EdgeInsets.all(20.0),
-        child: Text(
-          'Сначала зарегистрируйтесь, чтобы звонить бесплатно',
-          style: TextStyle(
-            fontSize: 24.0,
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildNumPad() {
-    return CallScreenLogic.numPadLabels
-        .map(
-          (row) => Padding(
-            padding: const EdgeInsets.all(3),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: row
-                  .map(
-                    (label) => ActionButton(
-                      title: '${label.keys.first}',
-                      subTitle: '${label.values.first}',
-                      onPressed: () => _handleKeyPad(label.keys.first),
-                      number: true,
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        )
-        .toList();
   }
 
   List<Widget> buildCallButtons() {
@@ -289,9 +259,7 @@ class _TabCallViewState extends State<TabCallView> {
                   },
                   formatters: [phoneFormatter],
                   validator: (String value) {
-                    bool match =
-                        RegExp(r'^8 \([0-9]{3}\) [0-9]{1}-[0-9]{3}-[0-9]{3}$')
-                            .hasMatch(value);
+                    bool match = phoneMaskValidator().hasMatch(value);
                     if (value.isEmpty || !match) {
                       return 'Введите телефон, кому звоним';
                     }
@@ -311,7 +279,7 @@ class _TabCallViewState extends State<TabCallView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
-          children: _buildNumPad(),
+          children: buildNumPad(handleKeyPad),
         ),
       ),
       Container(
@@ -331,6 +299,7 @@ class _TabCallViewState extends State<TabCallView> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text(inCallPhoneNumber),
             Text(inCallTime),
           ],
         ),
@@ -350,7 +319,7 @@ class _TabCallViewState extends State<TabCallView> {
     if (widget.userData['phoneFromHistory'] != null) {
       final String phone = phoneMaskHelper(widget.userData['phoneFromHistory']);
       widget.userData['phoneFromHistory'] = null;
-      setState((){
+      setState(() {
         if (_phoneController.text != phone) {
           _phoneController.text = phone;
         }
@@ -369,7 +338,7 @@ class _TabCallViewState extends State<TabCallView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: curUserExists ? _buildDialPad() : _buildError(),
+                  children: curUserExists ? _buildDialPad() : buildPhoneUnregisterError(),
                 ),
               ),
             ],

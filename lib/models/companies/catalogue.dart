@@ -1,11 +1,16 @@
+import 'dart:math';
+import 'package:flutter/material.dart';
+
 import 'package:masterme_chat/db/database_singletone.dart';
 import 'package:masterme_chat/helpers/log.dart';
 
 class Catalogue extends AbstractModel {
-  final int id;
-  final int count;
-  final String searchTerms;
-  final String name;
+  int id;
+  int count;
+  String searchTerms;
+  String name;
+  Color color;
+  String icon;
 
   static const TAG = 'Catalogue';
   static final String dbName = AbstractModel.dbCompaniesName;
@@ -28,20 +33,29 @@ class Catalogue extends AbstractModel {
       'count': count,
       'searchTerms': searchTerms,
       'name': name,
+      'icon': icon,
     };
   }
 
   Catalogue({
-    this.id,
-    this.count,
-    this.searchTerms,
-    this.name,
-  });
+    id,
+    count,
+    searchTerms,
+    name,
+    icon,
+  }) {
+    this.id = id;
+    this.count = count;
+    this.searchTerms = searchTerms;
+    this.name = name;
+    this.color = Colors.primaries[Random().nextInt(Colors.primaries.length)];
+    this.icon = icon;
+  }
 
   @override
   String toString() {
     return 'id: $id, count: $count, searchTerms: $searchTerms, ' +
-        'name: $name';
+        'name: $name, icon: $icon';
   }
 
   static List<Catalogue> jsonFromList(List<dynamic> arr) {
@@ -58,6 +72,7 @@ class Catalogue extends AbstractModel {
       count: json['count'] as int,
       searchTerms: json['search_terms'] as String,
       name: json['name'] as String,
+      icon: json['icon'] as String,
     );
   }
 
@@ -68,10 +83,12 @@ class Catalogue extends AbstractModel {
       count: dbItem['count'],
       searchTerms: dbItem['searchTerms'],
       name: dbItem['name'],
+      icon: dbItem['icon'],
     );
   }
 
-  static Future<List<Catalogue>> getFullCatalogue({String sort = 'name'}) async {
+  static Future<List<Catalogue>> getFullCatalogue(
+      {String sort = 'name'}) async {
     final db = await openCompaniesDB();
     final List<Map<String, dynamic>> maps = await db.query(
       tableName,
@@ -113,5 +130,4 @@ class Catalogue extends AbstractModel {
       return toModel(maps[i]);
     });
   }
-
 }
