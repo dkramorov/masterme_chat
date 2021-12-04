@@ -31,6 +31,7 @@ class _StepRegisterPhoneViewState extends State<StepRegisterPhoneView> {
 
   bool submitted = false;
   String _phone = '8';
+  String _name = '';
   String _passwd = '';
   String _type = 'reg';
 
@@ -72,10 +73,11 @@ class _StepRegisterPhoneViewState extends State<StepRegisterPhoneView> {
     });
 
     widget.userData['phone'] = _phone;
+    widget.userData['name'] = _name;
     widget.userData['passwd'] = _passwd;
 
     final RegistrationModel reg =
-        await RegistrationModel.requestRegistration(_phone, _passwd);
+        await RegistrationModel.requestRegistration(_phone, _name, _passwd);
 
     if (reg != null && reg.id != null) {
       nextPageView();
@@ -155,6 +157,23 @@ class _StepRegisterPhoneViewState extends State<StepRegisterPhoneView> {
                         keyboardType: TextInputType.number,
                         defaultValue: _phone,
                         prefixIcon: Icon(Icons.phone_android),
+                        textAlign: TextAlign.left,
+                      ),
+                      SIZED_BOX_H30,
+                      RoundedInputText(
+                        hint: 'Ваше имя',
+                        onChanged: (String text) {
+                          setState(() {
+                            _name = text;
+                          });
+                        },
+                        validator: (String value) {
+                          if (value.isEmpty) {
+                            return 'Введите ваше имя';
+                          }
+                        },
+                        defaultValue: _name,
+                        prefixIcon: Icon(Icons.account_circle_rounded),
                         textAlign: TextAlign.left,
                       ),
                       SIZED_BOX_H30,

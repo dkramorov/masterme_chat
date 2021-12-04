@@ -58,10 +58,13 @@ class UserChatModel extends AbstractModel {
     return phoneMaskHelper(this.login.replaceAll('@$JABBER_SERVER', ''));
   }
 
-  String getPhoto() {
+  String getPhoto({Function ifDownloaded}) {
+    /* Возвращает аватарку нашего пользователя
+       ifDownloaded вызывается после обновления
+    */
     if (this.photo != null && this.photo != '') {
       if (!File(this.photo).existsSync()) {
-        dowloadPhoto();
+        dowloadPhoto(ifDownloaded: ifDownloaded);
         return DEFAULT_AVATAR;
       }
       return this.photo;
@@ -69,8 +72,10 @@ class UserChatModel extends AbstractModel {
     return DEFAULT_AVATAR;
   }
 
-  /* Загружаем аватарку если ссыль есть */
-  Future<void> dowloadPhoto() async {
+  Future<void> dowloadPhoto({Function ifDownloaded}) async {
+    /* Загружаем аватарку по ссылке
+       ifDownloaded вызывается после обновления
+    */
     UserChatModel self = this;
     if (self.photoUrl != null && self.photoUrl.startsWith('http')) {
       SaveNetworkFile.getFileFromNetwork(self.photoUrl).then((photo) {
@@ -80,6 +85,13 @@ class UserChatModel extends AbstractModel {
         });
         self.photo = photo.path;
         self.key = UniqueKey();
+        // Обновляем и для вьюхи профиля
+        if (JabberConn.curUser != null && JabberConn.curUser.id == self.id) {
+          JabberConn.curUser.photo = photo.path;
+          if (ifDownloaded != null) {
+            ifDownloaded(photo.path);
+          }
+        }
       });
     }
   }
@@ -141,32 +153,26 @@ class UserChatModel extends AbstractModel {
         JabberConn.curUser.photoUrl = vCard.imageByUrl;
       });
     }
+    Map<String, String> kwargs = {};
     if (vCard.fullName != JabberConn.curUser.name) {
-      JabberConn.curUser.updatePartial(JabberConn.curUser.id, {
-        'name': vCard.fullName,
-      });
+      kwargs['name'] = vCard.fullName;
       curUserUpdated = true;
     }
     if (vCard.bDay != JabberConn.curUser.birthday) {
-      JabberConn.curUser.updatePartial(JabberConn.curUser.id, {
-        'birthday': vCard.bDay,
-      });
+      kwargs['birthday'] = vCard.bDay;
       curUserUpdated = true;
     }
     if (vCard.sex != JabberConn.curUser.gender.toString()) {
-      JabberConn.curUser.updatePartial(JabberConn.curUser.id, {
-        'gender': vCard.sex,
-      });
+      kwargs['gender'] = vCard.sex;
       curUserUpdated = true;
     }
     if (vCard.mail != JabberConn.curUser.email) {
-      JabberConn.curUser.updatePartial(JabberConn.curUser.id, {
-        'email': vCard.mail,
-      });
+      kwargs['email'] = vCard.mail;
       curUserUpdated = true;
     }
     // Если что-то обновилось, тогда с базы подтягиваем curUser
     if (curUserUpdated) {
+      await JabberConn.curUser.updatePartial(JabberConn.curUser.id, kwargs);
       Future.delayed(Duration(seconds: 1), () async {
         JabberConn.curUser =
             await UserChatModel.getByLogin(JabberConn.curUser.login);
@@ -257,9 +263,9 @@ class UserChatModel extends AbstractModel {
     return null;
   }
 
-  // Воткнуть пользователя в базу или обновить
   static Future<UserChatModel> insertLastLoginUser(
-      String login, String passwd) async {
+      String login, String passwd, {String name}) async {
+    /* Воткнуть пользователя в базу или обновить */
     await UserChatModel.clearLastLogin();
     String curLogin = login.replaceAll(RegExp('[^0-9]+'), '');
     UserChatModel user = await UserChatModel.getByLogin(curLogin);
@@ -272,6 +278,9 @@ class UserChatModel extends AbstractModel {
     } else {
       user.lastLogin = 1;
       user.passwd = passwd;
+    }
+    if (name != null) {
+      user.name = name;
     }
     await user.insert2Db();
     return user;

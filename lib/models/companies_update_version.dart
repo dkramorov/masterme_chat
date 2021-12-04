@@ -6,10 +6,11 @@ import 'package:dio/dio.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/helpers/save_network_file.dart';
+import 'package:masterme_chat/services/telegram_bot.dart';
 
 class CompaniesUpdateVersion {
   static const TAG = 'CompaniesUpateVersion';
-
+  static bool DEBUG = false; // отладочные сообщения по обновлению
   final int version;
 
   CompaniesUpdateVersion({
@@ -33,7 +34,8 @@ class CompaniesUpdateVersion {
   }
 
   static Future<int> downloadUpdateVersion() async {
-    final url = '$DB_SERVER$DB_UPDATE_VERSION';
+    String now = DateTime.now().toIso8601String(); // no cache param
+    final url = '$DB_SERVER$DB_UPDATE_VERSION?t=$now';
     Log.d(TAG, url);
     final String destFolder = await SaveNetworkFile.makeAppFolder();
     final File dest = File(destFolder + '/version.json');
@@ -50,12 +52,13 @@ class CompaniesUpdateVersion {
       dest.path,
     );
     Log.d(TAG, 'version number downloaded ${dest.path}');
-    CompaniesUpdateVersion response = parseResponse(await dest.readAsString());
+    String resp = await dest.readAsString();
+    CompaniesUpdateVersion response = parseResponse(resp);
 
     if (response != null) {
       return response.version;
     }
-
+    TelegramBot().sendError('$url update version number failed, resp $resp');
     return 0;
   }
 }

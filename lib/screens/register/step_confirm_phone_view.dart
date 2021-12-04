@@ -98,6 +98,7 @@ class _StepConfirmPhoneViewState extends State<StepConfirmPhoneView> {
     await UserChatModel.insertLastLoginUser(
       widget.userData['phone'],
       widget.userData['passwd'],
+      name: widget.userData['name'],
     );
     // Возвращаем 1
     Navigator.pop(context, 1);

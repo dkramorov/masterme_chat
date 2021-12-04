@@ -44,6 +44,9 @@ const LOGO_SIZE = 35.0;
 const LOGO_ICON_TAG = 'logo_icon';
 const SEARCH_ICON = 'assets/svg/bp_search_icon.svg';
 
+const BORDER_RADIUS_48 = BorderRadius.all(
+  Radius.circular(48.0),
+);
 const BORDER_RADIUS_32 = BorderRadius.all(
   Radius.circular(32.0),
 );

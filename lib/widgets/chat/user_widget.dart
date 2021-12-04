@@ -22,7 +22,7 @@ class _ChatUserWidgetState extends State<ChatUserWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final containerMsgTextWidth = MediaQuery.of(context).size.width * 0.5;
+    final containerMsgTextWidth = MediaQuery.of(context).size.width * 0.45;
     final msgTime = (widget.user.time != null && widget.user.time != '-')
         ? formatter.format(DateTime.parse(widget.user.time))
         : '-- --';

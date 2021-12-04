@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:masterme_chat/db/database_singletone.dart';
 import 'package:masterme_chat/helpers/log.dart';
 
+import 'cats.dart';
+
 class Catalogue extends AbstractModel {
   int id;
   int count;
@@ -11,6 +13,7 @@ class Catalogue extends AbstractModel {
   String name;
   Color color;
   String icon;
+  int position;
 
   static const TAG = 'Catalogue';
   static final String dbName = AbstractModel.dbCompaniesName;
@@ -34,6 +37,7 @@ class Catalogue extends AbstractModel {
       'searchTerms': searchTerms,
       'name': name,
       'icon': icon,
+      'position': position,
     };
   }
 
@@ -43,6 +47,7 @@ class Catalogue extends AbstractModel {
     searchTerms,
     name,
     icon,
+    position,
   }) {
     this.id = id;
     this.count = count;
@@ -50,12 +55,13 @@ class Catalogue extends AbstractModel {
     this.name = name;
     this.color = Colors.primaries[Random().nextInt(Colors.primaries.length)];
     this.icon = icon;
+    this.position = position;
   }
 
   @override
   String toString() {
     return 'id: $id, count: $count, searchTerms: $searchTerms, ' +
-        'name: $name, icon: $icon';
+        'name: $name, icon: $icon, position: $position';
   }
 
   static List<Catalogue> jsonFromList(List<dynamic> arr) {
@@ -73,6 +79,7 @@ class Catalogue extends AbstractModel {
       searchTerms: json['search_terms'] as String,
       name: json['name'] as String,
       icon: json['icon'] as String,
+      position: json['position'],
     );
   }
 
@@ -84,6 +91,7 @@ class Catalogue extends AbstractModel {
       searchTerms: dbItem['searchTerms'],
       name: dbItem['name'],
       icon: dbItem['icon'],
+      position: dbItem['position'],
     );
   }
 
@@ -128,6 +136,18 @@ class Catalogue extends AbstractModel {
         'SEARCH $tableName: ${whereClause.toString()}, ${args.toString()}');
     return List.generate(maps.length, (i) {
       return toModel(maps[i]);
+    });
+  }
+
+  static Future<List<Catalogue>> getCatsRubrics(List<Cats> cats) async {
+    final db = await openCompaniesDB();
+    List<int> ids = (cats.map((cat) => cat.catId)).toList();
+    final List<Map<String, dynamic>> rubrics = await db.query(
+      tableName,
+      where: 'id IN (${ids.join(',')})',
+    );
+    return List.generate(rubrics.length, (i) {
+      return toModel(rubrics[i]);
     });
   }
 }

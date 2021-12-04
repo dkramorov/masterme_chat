@@ -61,13 +61,15 @@ class _CompaniesListingScreenState extends State<CompaniesListingScreen> {
     });
   }
 
+  /* Страничка листинга компаний */
   Widget buildCatalogue() {
     if (companies.length == 0) {
       return CatalogueInUpdate();
     }
     return Column(
       children: [
-        SIZED_BOX_H45,
+        buildPanelForSearch(),
+        SIZED_BOX_H12,
         Expanded(
           child: ListView.builder(
             itemCount: companies.length,

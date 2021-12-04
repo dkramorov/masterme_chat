@@ -7,10 +7,13 @@ import 'package:sip_ua/sip_ua.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:masterme_chat/constants.dart';
 
+import 'jabber_connection.dart';
+
 
 class SipConnection implements SipUaHelperListener {
   static const String TAG = 'SipConnection';
-  bool inCallState;
+  bool inCallState = false;
+  bool incomingInProgress = false;
 
   static List<CallStateEnum> inCallStates = [
     CallStateEnum.STREAM,
@@ -56,8 +59,11 @@ class SipConnection implements SipUaHelperListener {
   String holdOriginator;
   CallStateEnum state = CallStateEnum.NONE;
 
-  void init(String userAgent) {
-    if (helper != null && userAgent != userAgent) {
+  void init(String newUserAgent) {
+
+    Log.d(TAG, ' --- Set userAgent from $userAgent to $newUserAgent');
+
+    if (helper != null && userAgent != newUserAgent) {
       helper.unregister();
       helper.stop();
       helper = null;
@@ -72,12 +78,20 @@ class SipConnection implements SipUaHelperListener {
       settings.webSocketUrl = SIP_WSS;
       settings.webSocketSettings.extraHeaders = {};
 
-      settings.authorizationUser = SIP_USER;
-      settings.password = SIP_PASSWD;
-      settings.displayName = SIP_USER;
-      settings.uri = '$SIP_USER@$SIP_SERVER';
-      settings.userAgent = '${userAgent}_$JABBER_SERVER';
-      this.userAgent = userAgent;
+      // Пользователь сип по умолчанию
+      //settings.authorizationUser = SIP_USER;
+      //settings.password = SIP_PASSWD;
+      //settings.displayName = SIP_USER;
+      //settings.uri = '$SIP_USER@$SIP_SERVER';
+
+      // Текущий джаббер юзер
+      settings.authorizationUser = JabberConn.curUser.login;
+      settings.password = JabberConn.curUser.passwd;
+      settings.displayName = JabberConn.curUser.login;
+      settings.uri = '${JabberConn.curUser.login}@$SIP_SERVER';
+
+      settings.userAgent = '${newUserAgent}_$JABBER_SERVER';
+      this.userAgent = newUserAgent;
       settings.dtmfMode = DtmfMode.RFC2833;
 
       helper.start(settings);
@@ -138,6 +152,11 @@ class SipConnection implements SipUaHelperListener {
 
     if (callState.state == CallStateEnum.CALL_INITIATION) {
       this.call = call;
+
+      print('-----------${call.direction}');
+      if (call.direction == 'INCOMING') {
+        incomingInProgress = true;
+      }
       inCallTime = 0;
     }
 
@@ -172,12 +191,13 @@ class SipConnection implements SipUaHelperListener {
       case CallStateEnum.FAILED:
         CallScreenLogic.callEnded(inCallTime);
         inCallState = false;
+        incomingInProgress = false;
         break;
+      case CallStateEnum.CONNECTING:
+      case CallStateEnum.ACCEPTED:
       case CallStateEnum.UNMUTED:
       case CallStateEnum.MUTED:
-      case CallStateEnum.CONNECTING:
       case CallStateEnum.PROGRESS:
-      case CallStateEnum.ACCEPTED:
       case CallStateEnum.CONFIRMED:
       case CallStateEnum.HOLD:
       case CallStateEnum.UNHOLD:
@@ -211,6 +231,27 @@ class SipConnection implements SipUaHelperListener {
     final phone = toPhoneNumber.replaceAll(RegExp('[^0-9]+'), '');
     Log.d(TAG, 'calling to $phone');
     helper.call(phone, false);
+  }
+  /* Инициация sip звонка */
+  void handleSipCall(String toPhoneNumber) {
+    handleHangup();
+    final phone = toPhoneNumber.replaceAll(RegExp('[^0-9]+'), '');
+    Log.d(TAG, 'calling to $phone');
+    helper.call('app_$phone', false);
+  }
+
+  /* Прием входящего */
+  void acceptCall() async {
+    incomingInProgress = false;
+    if (call == null) {
+      Log.e(TAG, 'Already null sipConnection or call');
+      return;
+    }
+    if (call.direction != 'INCOMING') {
+      Log.e(TAG, 'It is not incoming call');
+      return;
+    }
+    call.answer(helper.buildCallOptions(true));
   }
 
   void handleHangup() {
@@ -278,8 +319,8 @@ class SipConnection implements SipUaHelperListener {
   @override
   void registrationStateChanged(RegistrationState registrationState) {
     registerState = registrationState;
+    Log.w(TAG, ' --- Register state ${registerState.state.toString()}, ${registerState.cause.toString()}');
 /*
-    print("______________${registrationState.state}");
     if (registrationState.state == RegistrationStateEnum.REGISTERED) {
       _helper.call('sip:83952959223@calls.223-223.ru', false); // падает, если с видео
     }

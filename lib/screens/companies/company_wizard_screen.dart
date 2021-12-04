@@ -114,12 +114,17 @@ class _CompanyWizardScreenState extends State<CompanyWizardScreen> {
         ),
       ),
       bottomNavigationBar: ClipRRect(
-        borderRadius: BORDER_RADIUS_32,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(12.0),
+          topRight: Radius.circular(12.0),
+        ),
         child: SizedBox(
           child: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             currentIndex: _pageIndex,
-            backgroundColor: kBackgroundLightColor,
+            selectedItemColor: Colors.white,
+            unselectedItemColor: kOutSideDateColor,
+            backgroundColor: Colors.green,
             // Показывать подписи к вкладкам
             //showSelectedLabels: false,
             //showUnselectedLabels: false,
@@ -133,12 +138,10 @@ class _CompanyWizardScreenState extends State<CompanyWizardScreen> {
                   (navItem) => BottomNavigationBarItem(
                     icon: Icon(
                       navItem['icon'],
-                      color: _pageIndex == navItem['index']
-                          ? kPrimaryColor
-                          : kUnseletedColor,
                     ),
                     tooltip: navItem['tooltip'],
                     label: navItem['label'],
+                    backgroundColor: Colors.white,
                   ),
                 )
                 .toList(),

@@ -8,13 +8,25 @@ class CompaniesFloatingSearchWidget extends StatefulWidget {
       _CompaniesFloatingSearchWidgetState();
 }
 
+/* Подложка для поиска */
+Widget buildPanelForSearch() {
+  return ClipRRect(
+    borderRadius: BorderRadius.only(
+      bottomLeft: Radius.circular(12.0),
+      bottomRight: Radius.circular(12.0),
+    ),
+    child: Container(
+      height: 90.0,
+      color: Colors.green,
+    ),
+  );
+}
+
 class _CompaniesFloatingSearchWidgetState
     extends State<CompaniesFloatingSearchWidget> {
-
   SearchModel searchModel;
   bool searchProcessing = false;
   List<Widget> searchResult = [];
-
 
   @override
   void initState() {
@@ -44,6 +56,14 @@ class _CompaniesFloatingSearchWidgetState
   @override
   Widget build(BuildContext context) {
     return FloatingSearchBar(
+      margins: EdgeInsets.symmetric(
+        vertical: 20.0,
+        horizontal: 20.0,
+      ),
+      padding: EdgeInsets.only(
+        left: 10.0,
+        right: 5,
+      ),
       hint: 'Поиск...',
 
       clearQueryOnClose: true,

@@ -7,21 +7,34 @@ import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/screens/logic/call_logic.dart';
 import 'package:masterme_chat/widgets/phone/action_button.dart';
+import 'package:masterme_chat/widgets/phone/phone_helpers.dart';
 import 'package:masterme_chat/widgets/rounded_input_text.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class CallScreen extends StatefulWidget {
   static const String id = '/call_screen/';
+
+  final Function setStateCallback;
+  final PageController pageController;
+  Map<String, dynamic> userData;
+  final bool inScaffold;
+
+  CallScreen(
+      {this.pageController,
+      this.setStateCallback,
+      this.userData,
+      this.inScaffold = true});
 
   @override
   _CallScreenState createState() => _CallScreenState();
 }
 
 class _CallScreenState extends State<CallScreen> {
-  final String TAG = 'CallScreen';
+  static const String TAG = 'CallScreen';
   CallScreenLogic logic;
 
   bool inCallState = false;
-  bool curUserExists = false;
+  bool incomingInProgress = false;
 
   bool audioMuted = false;
   bool speakerOn = false;
@@ -31,13 +44,31 @@ class _CallScreenState extends State<CallScreen> {
   final PhoneFormatter phoneFormatter = PhoneFormatter();
 
   String phoneNumber = '8';
+  String inCallPhoneNumber = '';
 
   TextEditingController _phoneController = new TextEditingController();
 
   StreamSubscription proximitySubscription;
 
   @override
+  void initState() {
+    Log.d(TAG, 'initState');
+    logic = CallScreenLogic(setStateCallback: setStateCallback);
+    if (_phoneController.text != phoneNumber) {
+      _phoneController.text = phoneNumber;
+    }
+    super.initState();
+  }
+
+  @override
+  void deactivate() {
+    logic.deactivate();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
+    logic.dispose();
     _phoneController.dispose();
     stopListenProximitySensor();
     super.dispose();
@@ -62,49 +93,53 @@ class _CallScreenState extends State<CallScreen> {
       Log.d(TAG, 'proximity sensor already listening');
       return;
     }
-
     proximitySubscription = proximityEvents.listen((ProximityEvent event) {
       Log.d(TAG, '$event');
     });
   }
 
-  @override
-  initState() {
-    logic = CallScreenLogic(setStateCallback: setStateCallback);
-    if (_phoneController.text != phoneNumber) {
-      _phoneController.text = phoneNumber;
-    }
-    super.initState();
-  }
-
   // Обновление состояния
   void setStateCallback(Map<String, dynamic> state) {
-    setState(() {
-      if (state['inCallState'] != null && state['inCallState'] != inCallState) {
+    if (state['inCallState'] != null && state['inCallState'] != inCallState) {
+      setState(() {
         inCallState = state['inCallState'];
         if (inCallState) {
           listenProximitySensor();
         } else {
           stopListenProximitySensor();
         }
-      }
-      if (state['curUserExists'] != null &&
-          state['curUserExists'] != curUserExists) {
-        curUserExists = state['curUserExists'];
-      }
-      if (state['audioMuted'] != null && state['audioMuted'] != audioMuted) {
+      });
+    }
+    if (state['inCallPhoneNumber'] != null &&
+        state['inCallPhoneNumber'] != inCallPhoneNumber) {
+      setState(() {
+        inCallPhoneNumber = state['inCallPhoneNumber'];
+      });
+    }
+    if (state['audioMuted'] != null && state['audioMuted'] != audioMuted) {
+      setState(() {
         audioMuted = state['audioMuted'];
-      }
-      if (state['speakerOn'] != null && state['speakerOn'] != speakerOn) {
+      });
+    }
+    if (state['speakerOn'] != null && state['speakerOn'] != speakerOn) {
+      setState(() {
         speakerOn = state['speakerOn'];
-      }
-      if (state['inCallTime'] != null && state['inCallTime'] != inCallTime) {
+      });
+    }
+    if (state['inCallTime'] != null && state['inCallTime'] != inCallTime) {
+      setState(() {
         inCallTime = state['inCallTime'];
-      }
-    });
+      });
+    }
+    if (state['incomingInProgress'] != null &&
+        state['incomingInProgress'] != incomingInProgress) {
+      setState(() {
+        incomingInProgress = state['incomingInProgress'];
+      });
+    }
   }
 
-  void _handleKeyPad(String digit) {
+  void handleKeyPad(String digit) {
     if (inCallState) {
       logic.sendDTMF(digit);
       return;
@@ -137,7 +172,7 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   /* Отправка формы на звонок */
-  void callFormSubmit() {
+  Future<void> callFormSubmit() async {
     if (!phoneFormKey.currentState.validate()) {
       return;
     }
@@ -157,7 +192,11 @@ class _CallScreenState extends State<CallScreen> {
           'Понятно');
       return;
     }
-    logic.makeCall(phoneNumber);
+
+    bool hasPerm = await permsCheck(Permission.microphone, 'микрофон', context);
+    if (hasPerm) {
+      logic.makeCall(phoneNumber);
+    }
   }
 
   void _clearPhone() {
@@ -167,44 +206,31 @@ class _CallScreenState extends State<CallScreen> {
     });
   }
 
-  List<Widget> _buildError() {
-    return [
-      Container(
-        padding: EdgeInsets.all(20.0),
-        child: Text(
-          'Сначала зарегистрируйтесь, чтобы звонить бесплатно',
-          style: TextStyle(
-            fontSize: 24.0,
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildNumPad() {
-    return CallScreenLogic.numPadLabels
-        .map(
-          (row) => Padding(
-            padding: const EdgeInsets.all(3),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: row
-                  .map(
-                    (label) => ActionButton(
-                      title: '${label.keys.first}',
-                      subTitle: '${label.values.first}',
-                      onPressed: () => _handleKeyPad(label.keys.first),
-                      number: true,
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        )
-        .toList();
-  }
-
   List<Widget> buildCallButtons() {
+    if (incomingInProgress) {
+      return [
+        ActionButton(
+          title: 'принять',
+          icon: Icons.phone,
+          onPressed: () {
+            logic.acceptCall();
+            setState(() {
+              incomingInProgress = false;
+            });
+          },
+          fillColor: Colors.green,
+        ),
+        ActionButton(
+          title: 'отклонить',
+          icon: Icons.call_end,
+          onPressed: () {
+            logic.hangup();
+          },
+          fillColor: Colors.red,
+        ),
+      ];
+    }
+
     if (inCallState) {
       return [
         ActionButton(
@@ -293,7 +319,7 @@ class _CallScreenState extends State<CallScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
-          children: _buildNumPad(),
+          children: buildNumPad(handleKeyPad),
         ),
       ),
       Container(
@@ -313,6 +339,7 @@ class _CallScreenState extends State<CallScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text(inCallPhoneNumber),
             Text(inCallTime),
           ],
         ),
@@ -328,6 +355,29 @@ class _CallScreenState extends State<CallScreen> {
       }
     });
 
+    if (!widget.inScaffold) {
+      return Container(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 15.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: _buildDialPad(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -339,22 +389,12 @@ class _CallScreenState extends State<CallScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
-            /*
-            Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: Center(
-                  child: Text(
-                'Status: ${EnumHelper.getName(sipConnection.registerState.state)}',
-                style: TextStyle(fontSize: 14, color: Colors.black54),
-              ),),
-            ),
-             */
             Container(
               padding: EdgeInsets.symmetric(vertical: 15.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: curUserExists ? _buildDialPad() : _buildError(),
+                children: _buildDialPad(),
               ),
             ),
           ],

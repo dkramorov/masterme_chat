@@ -3,6 +3,7 @@ import 'package:masterme_chat/db/chat_message_model.dart';
 import 'package:masterme_chat/db/companies_sql_helper.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/models/companies/catalogue.dart';
+import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -13,7 +14,7 @@ import 'package:masterme_chat/helpers/log.dart';
 import 'chat_draft_model.dart';
 
 
-const DB_VERSION = 32; // Версия базы данных
+const DB_VERSION = 35; // Версия базы данных
 
 /*
 https://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
@@ -208,12 +209,16 @@ class AbstractModel {
         }
         String query = page[0];
         List<dynamic> params = page[1];
+        if (params.isEmpty) {
+          Log.d('transaction $tableName', 'empty params');
+          return;
+        }
         await txn.rawInsert(query, params);
       }
     });
     elapser.stop();
     Log.d('transaction ${db.path.split("/").last}.$tableName',
-        ', elapsed ${elapser.elapsed.inMilliseconds}');
+        'elapsed ${elapser.elapsed.inMilliseconds}');
   }
 
   /* Для сохранения всего говнища в базу,
@@ -431,6 +436,25 @@ Future<Database> openDB() async {
           dbinstance.execute(alterTableCatalogueAddIcon);
         });
       }
+      if (oldVersion <= 33) {
+        final companiesDB = openCompaniesDB();
+        companiesDB.then((dbinstance){
+          final String img = 'img text';
+          final String alterTableOrgsAddImg =
+              'ALTER TABLE ${Orgs.tableName} add $img';
+          dbinstance.execute(alterTableOrgsAddImg);
+        });
+      }
+      if (oldVersion <= 35) {
+        final companiesDB = openCompaniesDB();
+        companiesDB.then((dbinstance){
+          final String position = 'position int';
+          final String alterTableCatalogueAddPosition =
+              'ALTER TABLE ${Catalogue.tableName} add $position';
+          dbinstance.execute(alterTableCatalogueAddPosition);
+        });
+      }
+
     },
     // Set the version. This executes the onCreate function and provides a
     // path to perform database upgrades and downgrades.

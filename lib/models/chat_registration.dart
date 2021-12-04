@@ -73,12 +73,13 @@ class RegistrationModel {
   }
 
   static Future<RegistrationModel> requestRegistration(
-      String login, String passwd) async {
+      String login, String name, String passwd) async {
     final appInfo = await PackageInfo.fromPlatform();
     final appVersion = appInfo.version + '+' + appInfo.buildNumber;
     final queryParameters = {
       'action': 'registration',
       'phone': login,
+      'name': name,
       'passwd': passwd,
       'platform': Platform.operatingSystem,
       'version': appVersion,

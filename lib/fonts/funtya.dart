@@ -2,6 +2,8 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 
+/* Стандартные иконки https://fonts.google.com/icons?selected=Material+Icons */
+
 class Funtya {
   /*
   Usage:

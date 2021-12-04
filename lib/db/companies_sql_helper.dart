@@ -7,6 +7,7 @@ List<String> companiesSQLHelper() {
       ' name text,' +
       ' count integer,' +
       ' icon text,' +
+      ' position int,' +
       ' searchTerms text' +
       ')';
   queries.add(catalogueQuery);
@@ -47,6 +48,7 @@ List<String> companiesSQLHelper() {
       'id integer primary key autoincrement not null,' +
       ' name text,' +
       ' logo text,' +
+      ' img text,' +
       ' resume text,' +
       ' branches integer,' +
       ' phones integer,' +

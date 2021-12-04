@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'dart:convert';
 import 'package:masterme_chat/services/jabber_connection.dart';
 
 class TelegramBot {

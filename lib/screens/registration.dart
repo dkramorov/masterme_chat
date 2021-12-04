@@ -97,7 +97,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     openHUD();
     final RegistrationModel reg =
-        await RegistrationModel.requestRegistration(login, passwd);
+        await RegistrationModel.requestRegistration(login, '', passwd);
     if (reg != null && reg.id != null) {
       state = 1;
     } else {

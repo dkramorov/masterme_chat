@@ -63,4 +63,17 @@ class Cats extends AbstractModel {
     );
   }
 
+  static Future<List<Cats>> getOrgCats(int orgId) async {
+    /* Получение связок с рубриками по айди фирмы */
+    final db = await openCompaniesDB();
+    final List<Map<String, dynamic>> cats = await db.query(
+      Cats.tableName,
+      where: 'clientId = ?',
+      whereArgs: [orgId],
+    );
+    return List.generate(cats.length, (i) {
+      return toModel(cats[i]);
+    });
+  }
+
 }

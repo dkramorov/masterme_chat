@@ -80,14 +80,19 @@ class _TabProfileViewState extends State<TabProfileView> {
     birthdayController.text = birthday;
   }
 
+  void ifPhotoDownloaded(String path) {
+    /* Если фотка загрузилась с сервера */
+    setState(() {
+      photo = path;
+    });
+  }
+
   void setStateCallback(Map<String, dynamic> newState) {
     setState(() {
       if (newState['loggedIn'] != null &&
           newState['loggedIn'] != loggedIn &&
           JabberConn.curUser != null) {
-        photo = JabberConn.curUser.photo != null
-            ? JabberConn.curUser.photo
-            : DEFAULT_AVATAR;
+        photo = JabberConn.curUser.getPhoto(ifDownloaded: ifPhotoDownloaded);
         setName();
         setEmail();
         setBirthday();

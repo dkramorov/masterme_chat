@@ -73,18 +73,19 @@ class _TabCompaniesViewState extends State<TabCompaniesView> {
     );
   }
 
+  /* Вкладка со всеми категориями */
   Widget buildCatalogue() {
     return rubrics.length == 0
         ? CatalogueInUpdate()
         : Column(
             children: [
-              SIZED_BOX_H45,
+              buildPanelForSearch(),
               Expanded(
                 child: ListView.builder(
                   itemCount: rubrics.length,
                   shrinkWrap: true,
                   padding: EdgeInsets.symmetric(
-                    vertical: 15,
+                    vertical: 5,
                   ),
                   itemBuilder: (context, index) {
                     final item = rubrics[index];

@@ -14,6 +14,7 @@ import 'package:masterme_chat/models/companies/catalogue.dart';
 import 'package:masterme_chat/models/companies/cats.dart';
 import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
+import 'package:masterme_chat/services/telegram_bot.dart';
 
 class CompaniesUpdate {
   static const TAG = 'CompaniesUpate';
@@ -99,7 +100,8 @@ class CompaniesUpdate {
   }
 
   static Future<void> downloadUpdate() async {
-    final url = '$DB_SERVER$DB_UPDATE_ENDPOINT';
+    String now = DateTime.now().toIso8601String(); // no cache param
+    final url = '$DB_SERVER$DB_UPDATE_ENDPOINT?t=$now';
     Log.d(TAG, url);
     final String destFolder = await SaveNetworkFile.makeAppFolder();
     final File dest = File(destFolder + '/' + updateFName);
@@ -115,6 +117,9 @@ class CompaniesUpdate {
       url,
       dest.path,
     );
+    if (!dest.existsSync()) {
+      TelegramBot().sendError('$url update failed');
+    }
     Log.d(TAG, 'update file downloaded ${dest.path}');
   }
 }

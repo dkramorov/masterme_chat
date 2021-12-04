@@ -8,6 +8,7 @@ import 'package:masterme_chat/models/companies/phones.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/services/sip_connection.dart';
+import 'package:masterme_chat/services/telegram_bot.dart';
 import 'package:sip_ua/sip_ua.dart';
 
 class CallScreenLogic extends AbstractScreenLogic {
@@ -17,6 +18,7 @@ class CallScreenLogic extends AbstractScreenLogic {
   Call currentCall;
   static UserHistoryModel historyRow;
   Orgs curCompany;
+  bool isSip = false;
 
   static final List<List<Map<String, String>>> numPadLabels = [
     [
@@ -55,9 +57,6 @@ class CallScreenLogic extends AbstractScreenLogic {
       Log.d(TAG, 'new sipConnection with userAgent $userAgent');
       sipConnection = SipConnection();
       sipConnection.init(userAgent);
-      setStateCallback({
-        'curUserExists': true,
-      });
     }
   }
 
@@ -68,15 +67,22 @@ class CallScreenLogic extends AbstractScreenLogic {
 
   @override
   Future<void> checkState() async {
-    if (sipConnection != null && sipConnection.inCallState) {
-      Duration duration = Duration(seconds: sipConnection.inCallTime);
-      String inCallTime = [duration.inMinutes, duration.inSeconds]
-          .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
-          .join(':');
+    if (sipConnection != null) {
+      if (sipConnection.inCallState) {
+        Duration duration = Duration(seconds: sipConnection.inCallTime);
+        String inCallTime = [duration.inMinutes, duration.inSeconds]
+            .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
+            .join(':');
+        setStateCallback({
+          'inCallState': sipConnection.inCallState,
+          'inCallTime': inCallTime,
+          'inCallPhoneNumber': sipConnection.inCallPhoneNumber,
+          'incomingInProgress': sipConnection.incomingInProgress,
+        });
+      }
       setStateCallback({
         'inCallState': sipConnection.inCallState,
-        'inCallTime': inCallTime,
-        'inCallPhoneNumber': sipConnection.inCallPhoneNumber,
+        'incomingInProgress': sipConnection.incomingInProgress,
       });
     }
   }
@@ -84,7 +90,6 @@ class CallScreenLogic extends AbstractScreenLogic {
   Future<void> checkUserReg() async {
     if (JabberConn.curUser == null) {
       sipConnection = null;
-      setStateCallback({'curUserExists': false});
       return;
     } else if (JabberConn.curUser != null) {
       createSipConnection(JabberConn.curUser.login);
@@ -93,7 +98,17 @@ class CallScreenLogic extends AbstractScreenLogic {
 
   void makeCall(String phoneNumber) {
     String digits = phoneNumber.replaceAll(RegExp('[^0-9]+'), '');
-    sipConnection.handleCall(digits);
+
+    if (JabberConn.curUser != null) {
+      TelegramBot().notificationResponse(
+          'try isSip=$isSip makeCall ${JabberConn.curUser.login} => $phoneNumber');
+    }
+
+    if (isSip) {
+      sipConnection.handleSipCall(digits);
+    } else {
+      sipConnection.handleCall(digits);
+    }
     sipConnection.inCallPhoneNumber = phoneNumber;
     setStateCallback({
       'inCallState': true,
@@ -107,6 +122,14 @@ class CallScreenLogic extends AbstractScreenLogic {
     } else {
       call2History(digits);
     }
+  }
+
+  void acceptCall() async {
+    if (sipConnection == null || sipConnection.call == null) {
+      Log.d(TAG, 'Already null sipConnection or call');
+      return;
+    }
+    sipConnection.acceptCall();
   }
 
   void hangup() {
@@ -213,6 +236,13 @@ class CallScreenLogic extends AbstractScreenLogic {
           Log.d(TAG, '--- parsedArgument company $curCompany');
           setStateCallback({
             'company': curCompany,
+          });
+        }
+        isSip = arguments['isSip'];
+        if (isSip != null) {
+          Log.d(TAG, '--- parsedArgument isSip $isSip');
+          setStateCallback({
+            'isSip': isSip,
           });
         }
       }

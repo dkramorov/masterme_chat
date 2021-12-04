@@ -63,7 +63,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: '8800 help',
       theme: ThemeData.light().copyWith(
-        primaryColor: PRIMARY_BG_COLOR,
+        primaryColor: Colors.green,
         //scaffoldBackgroundColor: PRIMARY_BG_COLOR,
       ),
       initialRoute: RootScreen.id,

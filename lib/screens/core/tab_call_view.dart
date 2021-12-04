@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:all_sensors/all_sensors.dart';
 import 'package:flutter/material.dart';
-import 'package:masterme_chat/fonts/funtya.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
@@ -24,11 +23,11 @@ class TabCallView extends StatefulWidget {
 }
 
 class _TabCallViewState extends State<TabCallView> {
-  static const TAG = 'TabCallView';
+  static const String TAG = 'TabCallView';
   CallScreenLogic logic;
 
   bool inCallState = false;
-  bool curUserExists = false;
+  bool incomingInProgress = false;
 
   bool audioMuted = false;
   bool speakerOn = false;
@@ -94,33 +93,42 @@ class _TabCallViewState extends State<TabCallView> {
 
   // Обновление состояния
   void setStateCallback(Map<String, dynamic> state) {
-    setState(() {
-      if (state['inCallState'] != null && state['inCallState'] != inCallState) {
+    if (state['inCallState'] != null && state['inCallState'] != inCallState) {
+      setState(() {
         inCallState = state['inCallState'];
         if (inCallState) {
           listenProximitySensor();
         } else {
           stopListenProximitySensor();
         }
-      }
-      if (state['inCallPhoneNumber'] != null &&
-          state['inCallPhoneNumber'] != inCallPhoneNumber) {
+      });
+    }
+    if (state['inCallPhoneNumber'] != null &&
+        state['inCallPhoneNumber'] != inCallPhoneNumber) {
+      setState(() {
         inCallPhoneNumber = state['inCallPhoneNumber'];
-      }
-      if (state['curUserExists'] != null &&
-          state['curUserExists'] != curUserExists) {
-        curUserExists = state['curUserExists'];
-      }
-      if (state['audioMuted'] != null && state['audioMuted'] != audioMuted) {
+      });
+    }
+    if (state['audioMuted'] != null && state['audioMuted'] != audioMuted) {
+      setState(() {
         audioMuted = state['audioMuted'];
-      }
-      if (state['speakerOn'] != null && state['speakerOn'] != speakerOn) {
+      });
+    }
+    if (state['speakerOn'] != null && state['speakerOn'] != speakerOn) {
+      setState(() {
         speakerOn = state['speakerOn'];
-      }
-      if (state['inCallTime'] != null && state['inCallTime'] != inCallTime) {
+      });
+    }
+    if (state['inCallTime'] != null && state['inCallTime'] != inCallTime) {
+      setState(() {
         inCallTime = state['inCallTime'];
-      }
-    });
+      });
+    }
+    if (state['incomingInProgress'] != null && state['incomingInProgress'] != incomingInProgress) {
+      setState(() {
+        incomingInProgress = state['incomingInProgress'];
+      });
+    }
   }
 
   void handleKeyPad(String digit) {
@@ -191,6 +199,30 @@ class _TabCallViewState extends State<TabCallView> {
   }
 
   List<Widget> buildCallButtons() {
+    if (incomingInProgress) {
+      return [
+        ActionButton(
+          title: 'принять',
+          icon: Icons.phone,
+          onPressed: () {
+            logic.acceptCall();
+            setState(() {
+              incomingInProgress = false;
+            });
+          },
+          fillColor: Colors.green,
+        ),
+        ActionButton(
+          title: 'отклонить',
+          icon: Icons.call_end,
+          onPressed: () {
+            logic.hangup();
+          },
+          fillColor: Colors.red,
+        ),
+      ];
+    }
+
     if (inCallState) {
       return [
         ActionButton(
@@ -312,19 +344,8 @@ class _TabCallViewState extends State<TabCallView> {
     Future.delayed(Duration.zero).then((_) async {
       if (mounted) {
         logic.checkUserReg();
-        logic.checkState();
       }
     });
-
-    if (widget.userData['phoneFromHistory'] != null) {
-      final String phone = phoneMaskHelper(widget.userData['phoneFromHistory']);
-      widget.userData['phoneFromHistory'] = null;
-      setState(() {
-        if (_phoneController.text != phone) {
-          _phoneController.text = phone;
-        }
-      });
-    }
 
     return Container(
       child: Center(
@@ -338,7 +359,7 @@ class _TabCallViewState extends State<TabCallView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: curUserExists ? _buildDialPad() : buildPhoneUnregisterError(),
+                  children: _buildDialPad(),
                 ),
               ),
             ],

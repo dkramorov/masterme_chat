@@ -106,60 +106,75 @@ class _TabCallHistoryViewState extends State<TabCallHistoryView> {
                 });
               }
             },
-            child: ListTile(
-              leading: buildIcon(item),
-              title: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  item.company != null
-                      ? Text(
-                          item.company.name,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : Container(),
-                  Text(
-                    phoneMaskHelper(item.dest),
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: Container(
+              margin: EdgeInsets.only(bottom:5),
+              padding: EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey[300],
+                    offset: Offset(-2, 0),
+                    blurRadius: 7,
                   ),
                 ],
               ),
-              subtitle: SizedBox(
-                width: containerMsgTextWidth,
-                child: Row(
+              child: ListTile(
+                leading: Container(
+                  child: buildIcon(item),
+                  width: 60,
+                ),
+                title: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    item.company != null
+                        ? Text(
+                            item.company.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18.0,
+                            ),
+                          )
+                        : Container(),
                     Text(
-                      formatter.format(DateTime.parse(item.time)),
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
-                    ),
-                    SizedBox(
-                      width: 20.0,
-                    ),
-                    Icon(
-                      Icons.access_time,
-                      size: 13.0,
-                    ),
-                    SizedBox(
-                      width: 5.0,
-                    ),
-                    Text(
-                      item.duration != null ? item.duration.toString() : '0',
+                      phoneMaskHelper(item.dest),
+                      style: TextStyle(
+                        fontSize: 19.0,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
+                subtitle: SizedBox(
+                  width: containerMsgTextWidth,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Text(
+                        formatter.format(DateTime.parse(item.time)),
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                      ),
+                      SizedBox(
+                        width: 20.0,
+                      ),
+                      Icon(
+                        Icons.access_time,
+                        size: 13.0,
+                      ),
+                      SizedBox(
+                        width: 5.0,
+                      ),
+                      Text(
+                        item.duration != null ? item.duration.toString() : '0',
+                      ),
+                    ],
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right,
+                ),
               ),
             ),
           ),

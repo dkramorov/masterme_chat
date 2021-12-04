@@ -3,9 +3,12 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:masterme_chat/helpers/log.dart';
+
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
+
+import 'package:xmpp_stone/src/logger/Log.dart' as xmpp_log;
 import 'package:xmpp_stone/src/features/streammanagement/StreamManagmentModule.dart';
 
 import 'package:http/http.dart' as http;
@@ -13,6 +16,8 @@ import 'package:xmpp_stone/xmpp_stone.dart' as xmpp;
 
 class JabberConn {
   static const String TAG = 'JabberConn';
+  static const bool LOG_XMPP = false; // Отладочные сообщения xmpp
+  static const LOG_XMPP_LEVEL = xmpp_log.LogLevel.INFO;
 
   static int instanceKey = 0;
   static Timer healthCheckTimer;
@@ -70,12 +75,16 @@ class JabberConn {
               ? true
               : false;
       final connectionState = connection?.state;
-      Log.i(
-          TAG,
-          '${t.tick} instance: ${instanceKey}, ' +
-              'acc:${restoreAccount?.username}, ' +
-              'cstate:$connectionState, ' +
-              'rmanger:$reconnectionManagerActive');
+
+      // Логирование
+      if (LOG_XMPP) {
+        Log.i(
+            TAG,
+            '${t.tick} instance: ${instanceKey}, ' +
+                'acc:${restoreAccount?.username}, ' +
+                'cstate:$connectionState, ' +
+                'rmanger:$reconnectionManagerActive');
+      }
 
       // Если менеджер закончил переподключаться,
       // надо дропать имеющееся, оно уже не переподключиться,
@@ -103,6 +112,11 @@ class JabberConn {
 
   static xmpp.Connection createConnection(
       final xmpp.XmppAccountSettings account) {
+
+    // Сообщения по отладке xmpp
+    xmpp_log.Log.logXmpp = LOG_XMPP;
+    xmpp_log.Log.logLevel = LOG_XMPP_LEVEL;
+
     if (connection == null ||
         connection.account.fullJid != account.fullJid ||
         !loggedIn) {

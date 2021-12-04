@@ -4,7 +4,6 @@ import 'package:masterme_chat/models/companies/phones.dart';
 import 'package:masterme_chat/screens/companies/call2company_screen.dart';
 
 class PhoneRow extends StatelessWidget {
-
   final Phones phone;
   final Orgs company;
 
@@ -34,7 +33,8 @@ class PhoneRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    child: Text('${phone.getWhataDisplay(phone.whata)}. ${phone.comment}'),
+                    child: Text(
+                        '${phone.getWhataDisplay(phone.whata)}. ${phone.comment != null ? phone.comment : ""}'),
                   ),
                 ],
               ),

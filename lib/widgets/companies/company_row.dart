@@ -24,8 +24,6 @@ class CompanyRow extends StatelessWidget {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -56,9 +54,11 @@ class CompanyRow extends StatelessWidget {
                     children: [
                       Text(
                         'Телефонов: ${company.phones}',
+                        style: TextStyle(fontSize: 12.0),
                       ),
                       Text(
                         'Адресов: ${company.branches}',
+                        style: TextStyle(fontSize: 12.0),
                       ),
                     ],
                   ),

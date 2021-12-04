@@ -8,16 +8,19 @@ import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/screens/auth/auth.dart';
+import 'package:masterme_chat/screens/call.dart';
 import 'package:masterme_chat/screens/chat.dart';
 import 'package:masterme_chat/screens/core/tab_call_history_view.dart';
 import 'package:masterme_chat/screens/core/tab_call_view.dart';
 import 'package:masterme_chat/screens/core/tab_companies_view.dart';
+import 'package:masterme_chat/screens/core/tab_home_view.dart';
 import 'package:masterme_chat/screens/core/tab_profile_view.dart';
 import 'package:masterme_chat/screens/core/tab_roster_view.dart';
 import 'package:masterme_chat/screens/logic/login_logic.dart';
 import 'package:masterme_chat/screens/logic/roster_logic.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/services/push_manager.dart';
+import 'package:masterme_chat/services/update_manager.dart';
 import 'package:modal_progress_hud/modal_progress_hud.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -63,6 +66,7 @@ class _RootScreenState extends State<RootScreen> {
     final PushNotificationsManager pushManager = PushNotificationsManager();
     await pushManager.init();
     JabberConn.healthcheck();
+    UpdateManager().init();
     _initPackageInfo();
   }
 
@@ -116,10 +120,12 @@ class _RootScreenState extends State<RootScreen> {
     JabberConn.appVersion = info.version + '+' + info.buildNumber;
   }
 
-  setPageview(int index) {
-    setState(() {
-      _pageIndex = index;
-    });
+  setPageview(int index, {gotoInvisible: false}) {
+    if (!gotoInvisible) {
+      setState(() {
+        _pageIndex = index;
+      });
+    }
     _pageController.animateToPage(index,
         curve: _curvePageView, duration: _durationPageView);
   }
@@ -278,7 +284,12 @@ class _RootScreenState extends State<RootScreen> {
       userData['phoneFromHistory'] = newState['phoneFromHistory'];
     }
     if (newState['setPageview'] != null) {
-      setPageview(newState['setPageview']);
+      int pind = newState['setPageview'];
+      bool gotoInvisible = false;
+      if (pind >= 5) {
+        gotoInvisible = true;
+      }
+      setPageview(pind, gotoInvisible: gotoInvisible);
     }
   }
 
@@ -302,10 +313,11 @@ class _RootScreenState extends State<RootScreen> {
   Widget _pageViewBuilder(_, index) {
     switch (index) {
       case 1:
-        return TabCallView(
+        return CallScreen(
           pageController: _pageController,
           setStateCallback: setStateCallback,
           userData: userData,
+          inScaffold: false,
         );
         break;
       case 2:
@@ -364,7 +376,8 @@ class _RootScreenState extends State<RootScreen> {
             onPageChanged: _onPageChanged,
             physics: NeverScrollableScrollPhysics(),
             children: [
-              TabCompaniesView(
+              //TabCompaniesView(
+              TabHomeView(
                 pageController: _pageController,
                 setStateCallback: setStateCallback,
                 userData: userData,
@@ -387,17 +400,27 @@ class _RootScreenState extends State<RootScreen> {
               TabProfileView(
                 pageController: _pageController,
               ),
+              TabCompaniesView(
+                pageController: _pageController,
+                setStateCallback: setStateCallback,
+                userData: userData,
+              ),
             ],
           ),
         ),
       ),
       bottomNavigationBar: ClipRRect(
-        borderRadius: BORDER_RADIUS_32,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(12.0),
+          topRight: Radius.circular(12.0),
+        ),
         child: SizedBox(
           child: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             currentIndex: _pageIndex,
-            backgroundColor: kBackgroundLightColor,
+            selectedItemColor: Colors.white,
+            unselectedItemColor: kOutSideDateColor,
+            backgroundColor: Colors.green,
             // Показывать подписи к вкладкам
             //showSelectedLabels: false,
             //showUnselectedLabels: false,
@@ -407,13 +430,11 @@ class _RootScreenState extends State<RootScreen> {
               setState(() => _pageIndex = index);
             },
             items: NavigationData.nav
+                .where((navItem) => navItem['hide'] == null) // прячем некоторые
                 .map(
                   (navItem) => BottomNavigationBarItem(
                     icon: Icon(
                       navItem['icon'],
-                      color: _pageIndex == navItem['index']
-                          ? kPrimaryColor
-                          : kUnseletedColor,
                     ),
                     tooltip: navItem['tooltip'],
                     label: navItem['label'],
@@ -430,21 +451,21 @@ class _RootScreenState extends State<RootScreen> {
 class NavigationData {
   static List<dynamic> nav = [
     {
-      'icon': Icons.domain,
+      'icon': Icons.format_list_bulleted,
       'index': 0,
       'label': 'Каталог',
       'tooltip': 'Каталог',
       'title': 'Каталог компаний',
     },
     {
-      'icon': Icons.chat_outlined,
+      'icon': Icons.forum,
       'index': 1,
       'label': 'Чат',
       'tooltip': 'Чат',
       'title': 'Чат',
     },
     {
-      'icon': Icons.phone_android,
+      'icon': Icons.dialpad,
       'index': 2,
       'label': 'Позвонить',
       'tooltip': 'Бесплатные звонки',
@@ -458,11 +479,19 @@ class NavigationData {
       'title': 'История звонков',
     },
     {
-      'icon': Icons.settings,
+      'icon': Icons.account_circle_outlined,
       'index': 4,
       'label': 'Профиль',
       'tooltip': 'Профиль',
       'title': 'Ваш профиль',
+    },
+    {
+      'icon': Icons.domain,
+      'index': 5,
+      'label': 'Каталог',
+      'tooltip': 'Каталог',
+      'title': 'Каталог компаний',
+      'hide': true,
     },
   ];
 }

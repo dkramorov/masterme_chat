@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/fonts/funtya.dart';
 import 'package:masterme_chat/models/companies/catalogue.dart';
@@ -39,7 +38,11 @@ class CatRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              leading: buildAvatar(),
+              leading: Container(
+                child: buildAvatar(),
+                width: 60.0,
+                alignment: Alignment.center,
+              ),
               title: Text(
                 cat.name,
               ),

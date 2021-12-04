@@ -7,6 +7,9 @@ import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/models/companies/branches.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
 
+import 'catalogue.dart';
+import 'cats.dart';
+
 class Orgs extends AbstractModel {
   int id;
   int rating;
@@ -15,10 +18,13 @@ class Orgs extends AbstractModel {
   String resume;
   int phones;
   String logo;
+  String img;
   String searchTerms;
   int reg;
   Color color;
 
+  List<Cats> catsArr = [];
+  List<Catalogue> rubricsArr = [];
   List<Branches> branchesArr = [];
   List<Phones> phonesArr = [];
 
@@ -43,6 +49,13 @@ class Orgs extends AbstractModel {
     return DB_SERVER + DB_LOGO_PATH.replaceAll('COMPANY_ID', '$id') + logo;
   }
 
+  String getImagePath() {
+    if (id == null || img == null) {
+      return null;
+    }
+    return DB_SERVER + '/media/' + img;
+  }
+
   @override
   Map<String, dynamic> toMap() {
     return {
@@ -53,6 +66,7 @@ class Orgs extends AbstractModel {
       'resume': resume,
       'phones': phones,
       'logo': logo,
+      'img': img,
       'searchTerms': searchTerms,
       'reg': reg,
     };
@@ -66,6 +80,7 @@ class Orgs extends AbstractModel {
     resume,
     phones,
     logo,
+    img,
     searchTerms,
     reg,
   }) {
@@ -76,6 +91,7 @@ class Orgs extends AbstractModel {
     this.resume = resume;
     this.phones = phones;
     this.logo = logo;
+    this.img = img;
     this.searchTerms = searchTerms;
     this.reg = reg;
     this.color = Colors.primaries[Random().nextInt(Colors.primaries.length)];
@@ -85,7 +101,7 @@ class Orgs extends AbstractModel {
   String toString() {
     return 'id: $id, rating: $rating, branches: $branches, ' +
         'name: $name, resume: $resume, ' +
-        'phones: $phones, logo: $logo, ' +
+        'phones: $phones, logo: $logo, img: $img, ' +
         'searchTerms: $searchTerms, ' +
         'reg: $reg';
   }
@@ -107,6 +123,7 @@ class Orgs extends AbstractModel {
       resume: json['resume'] as String,
       phones: json['phones'] as int,
       logo: json['logo'] as String,
+      img: json['img'] as String,
       searchTerms: json['search_terms'] as String,
       reg: json['reg'] as int,
     );
@@ -122,6 +139,7 @@ class Orgs extends AbstractModel {
       resume: dbItem['resume'],
       phones: dbItem['phones'],
       logo: dbItem['logo'],
+      img: dbItem['img'],
       searchTerms: dbItem['searchTerms'],
       reg: dbItem['reg'],
     );
