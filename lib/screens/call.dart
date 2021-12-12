@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
+import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/screens/logic/call_logic.dart';
+import 'package:masterme_chat/widgets/companies/company_logo.dart';
 import 'package:masterme_chat/widgets/phone/action_button.dart';
 import 'package:masterme_chat/widgets/phone/phone_helpers.dart';
 import 'package:masterme_chat/widgets/rounded_input_text.dart';
@@ -45,6 +47,7 @@ class _CallScreenState extends State<CallScreen> {
 
   String phoneNumber = '8';
   String inCallPhoneNumber = '';
+  Orgs company;
 
   TextEditingController _phoneController = new TextEditingController();
 
@@ -57,6 +60,24 @@ class _CallScreenState extends State<CallScreen> {
     if (_phoneController.text != phoneNumber) {
       _phoneController.text = phoneNumber;
     }
+    /* Если тык с истории был, то номер подставляем и забываем его
+    TODO: а что если это история по фирме?
+    */
+    if (widget.userData != null) {
+      final String phoneFromHistory = widget.userData['phoneFromHistory'];
+      if (phoneFromHistory != null) {
+        phoneNumber = phoneMaskHelper(phoneFromHistory);
+        _phoneController.text = phoneNumber;
+        widget.userData['phoneFromHistory'] = null;
+      }
+    }
+    logic.parseArguments(context);
+    Future.delayed(Duration.zero).then((_) async {
+      if (mounted) {
+        logic.checkUserReg();
+        logic.checkState();
+      }
+    });
     super.initState();
   }
 
@@ -100,6 +121,17 @@ class _CallScreenState extends State<CallScreen> {
 
   // Обновление состояния
   void setStateCallback(Map<String, dynamic> state) {
+    if (state['phoneNumber'] != null && state['phoneNumber'] != phoneNumber) {
+      setState(() {
+        phoneNumber = state['phoneNumber'];
+        _phoneController.text = phoneNumber;
+      });
+    }
+    if (state['company'] != null && state['company'] != company) {
+      setState(() {
+        company = state['company'];
+      });
+    }
     if (state['inCallState'] != null && state['inCallState'] != inCallState) {
       setState(() {
         inCallState = state['inCallState'];
@@ -277,6 +309,40 @@ class _CallScreenState extends State<CallScreen> {
     ];
   }
 
+  Widget buildCompanyInfo() {
+    print(company);
+    if (company == null) {
+      return SizedBox();
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ListTile(
+            leading: CompanyLogoWidget(company),
+            title: Text(
+              company.name,
+              overflow: TextOverflow.ellipsis,
+              style: new TextStyle(
+                fontSize: 20.0,
+                color: new Color(0xFF212121),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Row(
+              children: [
+                Text(
+                  phoneNumber != null ? phoneNumber : '',
+                  style: TextStyle(fontSize: 16.0),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildDialPad() {
     return [
       Container(
@@ -389,6 +455,7 @@ class _CallScreenState extends State<CallScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
+            buildCompanyInfo(),
             Container(
               padding: EdgeInsets.symmetric(vertical: 15.0),
               child: Column(

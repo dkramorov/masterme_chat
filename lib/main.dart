@@ -6,7 +6,6 @@ import 'package:masterme_chat/screens/add2roster.dart';
 import 'package:masterme_chat/screens/auth/auth.dart';
 import 'package:masterme_chat/screens/call.dart';
 import 'package:masterme_chat/screens/chat.dart';
-import 'package:masterme_chat/screens/companies/call2company_screen.dart';
 import 'package:masterme_chat/screens/companies/companies_listing_screen.dart';
 import 'package:masterme_chat/screens/companies/company_wizard_screen.dart';
 import 'package:masterme_chat/screens/core/root_wizard_screen.dart';
@@ -90,7 +89,6 @@ class MyApp extends StatelessWidget {
 
         CompaniesListingScreen.id: (context) => CompaniesListingScreen(),
         CompanyWizardScreen.id: (context) => CompanyWizardScreen(),
-        Call2CompanyScreen.id: (context) => Call2CompanyScreen(),
       },
     );
   }

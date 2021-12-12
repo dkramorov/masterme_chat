@@ -5,13 +5,12 @@ import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/models/companies/branches.dart';
 import 'package:masterme_chat/models/companies/catalogue.dart';
 import 'package:masterme_chat/models/companies/orgs.dart';
+import 'package:masterme_chat/screens/call.dart';
 import 'package:masterme_chat/widgets/companies/branch_row.dart';
 import 'package:masterme_chat/widgets/companies/catalogue_in_update.dart';
 import 'package:masterme_chat/widgets/companies/company_logo.dart';
 import 'package:masterme_chat/widgets/companies/star_rating_widget.dart';
 import 'package:masterme_chat/widgets/rounded_button_widget.dart';
-
-import 'call2company_screen.dart';
 
 class TabCompanyView extends StatefulWidget {
   final Function setStateCallback;
@@ -117,7 +116,7 @@ class _TabCompanyViewState extends State<TabCompanyView> {
             borderRadius: 8.0,
             color: companyCardBackgroudColor,
             onPressed: () {
-              Navigator.pushNamed(context, Call2CompanyScreen.id, arguments: {
+              Navigator.pushNamed(context, CallScreen.id, arguments: {
                 'curPhone': phone,
                 'curCompany': widget.company,
               });

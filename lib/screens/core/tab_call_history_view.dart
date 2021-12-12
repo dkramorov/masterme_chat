@@ -4,7 +4,7 @@ import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
-import 'package:masterme_chat/screens/companies/call2company_screen.dart';
+import 'package:masterme_chat/screens/call.dart';
 import 'package:masterme_chat/screens/logic/history_logic.dart';
 import 'package:masterme_chat/widgets/companies/company_logo.dart';
 
@@ -95,7 +95,7 @@ class _TabCallHistoryViewState extends State<TabCallHistoryView> {
           child: GestureDetector(
             onTap: () {
               if (item.company != null) {
-                Navigator.pushNamed(context, Call2CompanyScreen.id, arguments: {
+                Navigator.pushNamed(context, CallScreen.id, arguments: {
                   'curPhoneStr': item.dest,
                   'curCompany': item.company,
                 });

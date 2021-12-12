@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/models/companies/phones.dart';
-import 'package:masterme_chat/screens/companies/call2company_screen.dart';
+import 'package:masterme_chat/screens/call.dart';
 
 class PhoneRow extends StatelessWidget {
   final Phones phone;
@@ -14,7 +14,7 @@ class PhoneRow extends StatelessWidget {
     return GestureDetector(
       key: UniqueKey(),
       onTap: () {
-        Navigator.pushNamed(context, Call2CompanyScreen.id, arguments: {
+        Navigator.pushNamed(context, CallScreen.id, arguments: {
           'curPhone': phone,
           'curCompany': company,
         });

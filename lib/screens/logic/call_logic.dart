@@ -19,6 +19,9 @@ class CallScreenLogic extends AbstractScreenLogic {
   static UserHistoryModel historyRow;
   Orgs curCompany;
   bool isSip = false;
+  // Количество секунд, которое мы не будем менять inCallState
+  int makeCallPressedDelay = 3;
+  static int makeCallPressed = 0;
 
   static final List<List<Map<String, String>>> numPadLabels = [
     [
@@ -47,6 +50,10 @@ class CallScreenLogic extends AbstractScreenLogic {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 1), (Timer t) async {
       await checkState();
+
+      if (makeCallPressed > 0) {
+        makeCallPressed -= 1;
+      }
       //Log.d(TAG, '${screenTimer.tick}');
     });
   }
@@ -68,20 +75,23 @@ class CallScreenLogic extends AbstractScreenLogic {
   @override
   Future<void> checkState() async {
     if (sipConnection != null) {
+
+      bool inCallState = (makeCallPressed > 0 && sipConnection.call != null);
+
       if (sipConnection.inCallState) {
         Duration duration = Duration(seconds: sipConnection.inCallTime);
         String inCallTime = [duration.inMinutes, duration.inSeconds]
             .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
             .join(':');
         setStateCallback({
-          'inCallState': sipConnection.inCallState,
+          'inCallState': sipConnection.inCallState || inCallState,
           'inCallTime': inCallTime,
           'inCallPhoneNumber': sipConnection.inCallPhoneNumber,
           'incomingInProgress': sipConnection.incomingInProgress,
         });
       }
       setStateCallback({
-        'inCallState': sipConnection.inCallState,
+        'inCallState': sipConnection.inCallState || inCallState,
         'incomingInProgress': sipConnection.incomingInProgress,
       });
     }
@@ -103,8 +113,9 @@ class CallScreenLogic extends AbstractScreenLogic {
       TelegramBot().notificationResponse(
           'try isSip=$isSip makeCall ${JabberConn.curUser.login} => $phoneNumber');
     }
-
-    if (isSip) {
+    makeCallPressed = makeCallPressedDelay; // для задержки смены inCallState
+    /* TODO: проверить почему isSip с фирмы null */
+    if (isSip != null && isSip) {
       sipConnection.handleSipCall(digits);
     } else {
       sipConnection.handleCall(digits);
@@ -173,6 +184,7 @@ class CallScreenLogic extends AbstractScreenLogic {
   }
 
   static Future<void> callEnded(int duration) async {
+    makeCallPressed = 0;
     if (CallScreenLogic.historyRow == null ||
         CallScreenLogic.historyRow.id == null) {
       return;

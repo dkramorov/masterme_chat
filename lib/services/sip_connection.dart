@@ -60,13 +60,13 @@ class SipConnection implements SipUaHelperListener {
   CallStateEnum state = CallStateEnum.NONE;
 
   void init(String newUserAgent) {
-
-    Log.d(TAG, ' --- Set userAgent from $userAgent to $newUserAgent');
-
-    if (helper != null && userAgent != newUserAgent) {
-      helper.unregister();
-      helper.stop();
-      helper = null;
+    if (helper != null) {
+      if (userAgent != newUserAgent || !helper.registered) {
+        Log.d(TAG, ' --- Set userAgent from $userAgent to $newUserAgent');
+        helper.unregister();
+        helper.stop();
+        helper = null;
+      }
     }
     if (helper == null) {
       helper = SIPUAHelper();
@@ -93,6 +93,7 @@ class SipConnection implements SipUaHelperListener {
       settings.userAgent = '${newUserAgent}_$JABBER_SERVER';
       this.userAgent = newUserAgent;
       settings.dtmfMode = DtmfMode.RFC2833;
+      settings.iceServers = [{'url': 'stun:91.185.46.56:3478'}];
 
       helper.start(settings);
 
@@ -153,7 +154,6 @@ class SipConnection implements SipUaHelperListener {
     if (callState.state == CallStateEnum.CALL_INITIATION) {
       this.call = call;
 
-      print('-----------${call.direction}');
       if (call.direction == 'INCOMING') {
         incomingInProgress = true;
       }

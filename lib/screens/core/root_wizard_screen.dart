@@ -11,7 +11,6 @@ import 'package:masterme_chat/screens/auth/auth.dart';
 import 'package:masterme_chat/screens/call.dart';
 import 'package:masterme_chat/screens/chat.dart';
 import 'package:masterme_chat/screens/core/tab_call_history_view.dart';
-import 'package:masterme_chat/screens/core/tab_call_view.dart';
 import 'package:masterme_chat/screens/core/tab_companies_view.dart';
 import 'package:masterme_chat/screens/core/tab_home_view.dart';
 import 'package:masterme_chat/screens/core/tab_profile_view.dart';
@@ -310,38 +309,6 @@ class _RootScreenState extends State<RootScreen> {
     }
   }
 
-  Widget _pageViewBuilder(_, index) {
-    switch (index) {
-      case 1:
-        return CallScreen(
-          pageController: _pageController,
-          setStateCallback: setStateCallback,
-          userData: userData,
-          inScaffold: false,
-        );
-        break;
-      case 2:
-        return TabCallHistoryView(
-          pageController: _pageController,
-          setStateCallback: setStateCallback,
-          userData: userData,
-        );
-        break;
-      case 3:
-        return TabProfileView(
-          pageController: _pageController,
-        );
-        break;
-      default:
-        return TabRosterView(
-          pageController: _pageController,
-          setStateCallback: setStateCallback,
-          userData: userData,
-        );
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     listenConnectionStream();
@@ -387,10 +354,12 @@ class _RootScreenState extends State<RootScreen> {
                 setStateCallback: setStateCallback,
                 userData: userData,
               ),
-              TabCallView(
+              /* и вкладка и отдельный экран */
+              CallScreen(
                 pageController: _pageController,
                 setStateCallback: setStateCallback,
                 userData: userData,
+                inScaffold: false,
               ),
               TabCallHistoryView(
                 pageController: _pageController,
