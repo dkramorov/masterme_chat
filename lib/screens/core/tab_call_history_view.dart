@@ -6,6 +6,7 @@ import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/screens/call.dart';
 import 'package:masterme_chat/screens/logic/history_logic.dart';
+import 'package:masterme_chat/services/sip_connection.dart';
 import 'package:masterme_chat/widgets/companies/company_logo.dart';
 
 class TabCallHistoryView extends StatefulWidget {
@@ -88,6 +89,8 @@ class _TabCallHistoryViewState extends State<TabCallHistoryView> {
       ),
       itemBuilder: (context, index) {
         final item = history[history.length - index - 1];
+        final duration = SipConnection.calcCallTime(
+            item.duration != null ? item.duration : 0);
         return Dismissible(
           key: UniqueKey(),
           background: Container(color: Colors.red),
@@ -107,7 +110,7 @@ class _TabCallHistoryViewState extends State<TabCallHistoryView> {
               }
             },
             child: Container(
-              margin: EdgeInsets.only(bottom:5),
+              margin: EdgeInsets.only(bottom: 5),
               padding: EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -166,9 +169,7 @@ class _TabCallHistoryViewState extends State<TabCallHistoryView> {
                       SizedBox(
                         width: 5.0,
                       ),
-                      Text(
-                        item.duration != null ? item.duration.toString() : '0',
-                      ),
+                      Text(duration),
                     ],
                   ),
                 ),

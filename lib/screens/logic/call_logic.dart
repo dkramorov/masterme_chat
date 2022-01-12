@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
@@ -9,18 +10,20 @@ import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/services/sip_connection.dart';
 import 'package:masterme_chat/services/telegram_bot.dart';
+import 'package:masterme_chat/constants.dart';
 import 'package:sip_ua/sip_ua.dart';
+
+import 'package:http/http.dart' as http;
 
 class CallScreenLogic extends AbstractScreenLogic {
   static const TAG = 'CallScreenLogic';
 
-  SipConnection sipConnection;
   Call currentCall;
   static UserHistoryModel historyRow;
   Orgs curCompany;
   bool isSip = false;
   // Количество секунд, которое мы не будем менять inCallState
-  int makeCallPressedDelay = 3;
+  int makeCallPressedDelay = 5;
   static int makeCallPressed = 0;
 
   static final List<List<Map<String, String>>> numPadLabels = [
@@ -50,21 +53,8 @@ class CallScreenLogic extends AbstractScreenLogic {
     this.setStateCallback = setStateCallback;
     this.screenTimer = Timer.periodic(Duration(seconds: 1), (Timer t) async {
       await checkState();
-
-      if (makeCallPressed > 0) {
-        makeCallPressed -= 1;
-      }
       //Log.d(TAG, '${screenTimer.tick}');
     });
-  }
-
-  // Добавить подключение если еще нету
-  void createSipConnection(String userAgent) {
-    if (sipConnection == null) {
-      Log.d(TAG, 'new sipConnection with userAgent $userAgent');
-      sipConnection = SipConnection();
-      sipConnection.init(userAgent);
-    }
   }
 
   @override
@@ -72,104 +62,165 @@ class CallScreenLogic extends AbstractScreenLogic {
     return TAG;
   }
 
+
   @override
   Future<void> checkState() async {
-    if (sipConnection != null) {
+    if (SipConnection.helper != null) {
+      if (makeCallPressed > 0) {
+        makeCallPressed -= 1;
+      }
+      bool inCallState = makeCallPressed > 0 || SipConnection.inCallState;
 
-      bool inCallState = (makeCallPressed > 0 && sipConnection.call != null);
+      if (!inCallState) {
+        if (SipConnection.audioPlayer != null) {
+          SipConnection.audioPlayer.pause();
+        }
+      }
 
-      if (sipConnection.inCallState) {
-        Duration duration = Duration(seconds: sipConnection.inCallTime);
-        String inCallTime = [duration.inMinutes, duration.inSeconds]
-            .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
-            .join(':');
+      if (inCallState) {
         setStateCallback({
-          'inCallState': sipConnection.inCallState || inCallState,
-          'inCallTime': inCallTime,
-          'inCallPhoneNumber': sipConnection.inCallPhoneNumber,
-          'incomingInProgress': sipConnection.incomingInProgress,
+          'inCallTime': SipConnection.calcCallTime(SipConnection.inCallTime),
+          'inCallPhoneNumber': SipConnection.inCallPhoneNumber,
         });
       }
       setStateCallback({
-        'inCallState': sipConnection.inCallState || inCallState,
-        'incomingInProgress': sipConnection.incomingInProgress,
+        'inCallState': inCallState,
+        'incomingInProgress': SipConnection.incomingInProgress,
       });
+
     }
   }
 
-  Future<void> checkUserReg() async {
-    if (JabberConn.curUser == null) {
-      sipConnection = null;
-      return;
-    } else if (JabberConn.curUser != null) {
-      createSipConnection(JabberConn.curUser.login);
-    }
-  }
-
-  void makeCall(String phoneNumber) {
-    String digits = phoneNumber.replaceAll(RegExp('[^0-9]+'), '');
-
-    if (JabberConn.curUser != null) {
+  /* Отправка уведомления (на каждый чих) */
+  Future<void> sendNotification(String phone, String msg) async {
+    final uri = Uri.parse('https://$JABBER_SERVER$JABBER_NOTIFY_ENDPOINT');
+    var response = await http.post(
+      uri,
+      headers: {
+        // HttpHeaders.authorizationHeader: 'Basic xxxxxxx',
+        //'Content-Type': 'image/jpeg',
+      },
+      body: jsonEncode(<String, String>{
+        'body': msg,
+        'name': JabberConn.curUser.getName(),
+        'toJID': phone.replaceAll(RegExp('[^0-9]+'), ''),
+        'fromJID': JabberConn.connection.fullJid.local,
+        'credentials': JabberConn.credentialsHash(),
+      }),
+    );
+    Log.i(TAG,
+        'notification response ${response.statusCode}, ${response.body.toString()}');
+    try {
+      var decoded = json.decode(response.body);
       TelegramBot().notificationResponse(
-          'try isSip=$isSip makeCall ${JabberConn.curUser.login} => $phoneNumber');
+          'Notification msg: ${response.statusCode}=>${JsonEncoder.withIndent('  ').convert(decoded)}');
+    } catch (Exception) {
+      TelegramBot().notificationResponse(
+          'Notification msg: ${response.statusCode}=>${response.body.toString()}');
     }
-    makeCallPressed = makeCallPressedDelay; // для задержки смены inCallState
-    /* TODO: проверить почему isSip с фирмы null */
-    if (isSip != null && isSip) {
-      sipConnection.handleSipCall(digits);
-    } else {
-      sipConnection.handleCall(digits);
+  }
+
+  /* Отправка push-data */
+  Future<void> sendCallPush(String phone) async {
+    final uri = Uri.parse('https://$JABBER_SERVER$JABBER_NOTIFY_ENDPOINT');
+    var response = await http.post(
+      uri,
+      headers: {
+        // HttpHeaders.authorizationHeader: 'Basic xxxxxxx',
+        //'Content-Type': 'image/jpeg',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'only_data': true,
+        'additional_data': {
+          'action': 'call',
+        },
+        'name': JabberConn.curUser.getName(),
+        'toJID': phone.replaceAll(RegExp('[^0-9]+'), ''),
+        'fromJID': JabberConn.connection.fullJid.local,
+        'credentials': JabberConn.credentialsHash(),
+      }),
+    );
+    Log.i(TAG,
+        'notification response ${response.statusCode}, ${response.body.toString()}');
+    try {
+      var decoded = json.decode(response.body);
+      TelegramBot().notificationResponse(
+          'Notification msg: ${response.statusCode}=>${JsonEncoder.withIndent('  ').convert(decoded)}');
+    } catch (Exception) {
+      TelegramBot().notificationResponse(
+          'Notification msg: ${response.statusCode}=>${response.body.toString()}');
     }
-    sipConnection.inCallPhoneNumber = phoneNumber;
+  }
+
+  Future<void> makeCall(String phoneNumber) async {
+    final SipConnection sip = SipConnection();
+
+    String digits = phoneNumber.replaceAll(RegExp('[^0-9]+'), '');
+    String sipNumber = phoneNumber;
+    if (isSip) {
+      sipNumber = 'sip: $phoneNumber';
+    }
+
+    await sip.handleHangup();
+    await SipConnection.playOutgoingSound();
+
+    SipConnection.inCallTime = 0;
     setStateCallback({
       'inCallState': true,
-      'inCallTime': '00:00',
-      'inCallPhoneNumber': phoneNumber,
+      'inCallTime': SipConnection.calcCallTime(SipConnection.inCallTime),
+      'inCallPhoneNumber': sipNumber,
     });
 
+    makeCallPressed = makeCallPressedDelay; // для задержки смены inCallState
+
+    await sip.init(JabberConn.curUser.login);
+    SipConnection.inCallPhoneNumber = phoneNumber;
     // Записываем в историю
     if (curCompany != null) {
-      call2History(digits, companyId: curCompany.id);
+      await call2History(digits, companyId: curCompany.id);
     } else {
-      call2History(digits);
+      await call2History(digits);
     }
+
+    SipConnection.pendingCall = Timer(Duration(seconds: 3), () {
+      if (isSip) {
+        //await sendCallPush(digits);
+        sip.handleSipCall(digits);
+      } else {
+        sip.handleCall(digits);
+      }
+    });
   }
 
   void acceptCall() async {
-    if (sipConnection == null || sipConnection.call == null) {
+    if (SipConnection.call == null) {
       Log.d(TAG, 'Already null sipConnection or call');
       return;
     }
-    sipConnection.acceptCall();
+    makeCallPressed = -1;
+    SipConnection().acceptCall();
   }
 
   void hangup() {
-    if (sipConnection != null) {
-      sipConnection.handleHangup();
-      setStateCallback({'inCallState': false});
-    }
+    makeCallPressed = -1;
+    SipConnection().handleHangup();
+    setStateCallback({'inCallState': false});
   }
 
   void toggleMute() {
-    if (sipConnection != null) {
-      sipConnection.muteAudio();
+      SipConnection().muteAudio();
       //sipConnection.muteVideo();
       //setStateCallback({'audioMuted': sipConnection.videoMuted});
-      setStateCallback({'audioMuted': sipConnection.audioMuted});
-    }
+      setStateCallback({'audioMuted': SipConnection.audioMuted});
   }
 
   void toggleSpeaker() {
-    if (sipConnection != null) {
-      sipConnection.toggleSpeaker();
-      setStateCallback({'speakerOn': sipConnection.speakerOn});
-    }
+    SipConnection().toggleSpeaker();
+    setStateCallback({'speakerOn': SipConnection.speakerOn});
   }
 
   void sendDTMF(String digit) {
-    if (sipConnection != null) {
-      sipConnection.handleDtmf(digit);
-    }
+    SipConnection().handleDtmf(digit);
   }
 
   static Future<void> call2History(String dest, {int companyId}) async {
@@ -183,8 +234,7 @@ class CallScreenLogic extends AbstractScreenLogic {
     CallScreenLogic.historyRow.insert2Db();
   }
 
-  static Future<void> callEnded(int duration) async {
-    makeCallPressed = 0;
+  static Future<void> saveCallTime(int duration) async {
     if (CallScreenLogic.historyRow == null ||
         CallScreenLogic.historyRow.id == null) {
       return;
@@ -256,6 +306,8 @@ class CallScreenLogic extends AbstractScreenLogic {
           setStateCallback({
             'isSip': isSip,
           });
+        } else {
+          isSip = false;
         }
       }
     });

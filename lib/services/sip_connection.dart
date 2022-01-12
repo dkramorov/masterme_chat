@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:audioplayers/audio_cache.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/screens/logic/call_logic.dart';
@@ -9,11 +11,15 @@ import 'package:masterme_chat/constants.dart';
 
 import 'jabber_connection.dart';
 
-
 class SipConnection implements SipUaHelperListener {
   static const String TAG = 'SipConnection';
-  bool inCallState = false;
-  bool incomingInProgress = false;
+  static bool inCallState = false;
+  static bool incomingInProgress = false;
+  static AudioCache audioCache = AudioCache();
+  static AudioPlayer audioPlayer;
+  static final String outgoingSound = 'call/ringbacktone.wav';
+  static final String incomingSound = 'call/ringtone.wav';
+  static Timer pendingCall;
 
   static List<CallStateEnum> inCallStates = [
     CallStateEnum.STREAM,
@@ -28,19 +34,18 @@ class SipConnection implements SipUaHelperListener {
     CallStateEnum.CALL_INITIATION,
   ];
 
-
   static final SipConnection _singleton = SipConnection._internal();
   factory SipConnection() {
     return _singleton;
   }
   SipConnection._internal();
 
-  SIPUAHelper helper;
-  String userAgent;
-  RegistrationState registerState;
-  Call call;
-  String inCallPhoneNumber = ''; // Чтобы подписывать куда звонок идет сейчас
-  int inCallTime = 0; // Продолжительность звонка
+  static SIPUAHelper helper;
+  static String userAgent;
+  static RegistrationState registerState;
+  static Call call;
+  static String inCallPhoneNumber = ''; // Чтобы подписывать куда звонок идет сейчас
+  static int inCallTime = 0; // Продолжительность звонка
 
   RTCVideoRenderer localRenderer = RTCVideoRenderer();
   RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
@@ -51,32 +56,42 @@ class SipConnection implements SipUaHelperListener {
   MediaStream remoteStream;
 
   String timeLabel = '00:00';
-  Timer timer;
-  bool audioMuted = false;
-  bool videoMuted = false;
-  bool speakerOn = false;
-  bool hold = false;
-  String holdOriginator;
-  CallStateEnum state = CallStateEnum.NONE;
+  static Timer timer;
+  static bool audioMuted = false;
+  static bool videoMuted = false;
+  static bool speakerOn = false;
+  static bool hold = false;
+  static String holdOriginator;
+  static CallStateEnum state = CallStateEnum.NONE;
 
-  void init(String newUserAgent) {
+  /* Вывод времени в формате 00:00 */
+  static String calcCallTime(int callTime) {
+    Duration duration = Duration(seconds: callTime);
+    String result = [duration.inMinutes, duration.inSeconds]
+        .map((seg) => seg.remainder(60).toString().padLeft(2, '0'))
+        .join(':');
+    return result;
+  }
+
+  Future<void> init(String newUserAgent) async {
+    /*
     if (helper != null) {
       if (userAgent != newUserAgent || !helper.registered) {
         Log.d(TAG, ' --- Set userAgent from $userAgent to $newUserAgent');
-        helper.unregister();
+        if (helper.registered) {
+          helper.unregister();
+        }
         helper.stop();
         helper = null;
       }
     }
+    */
     if (helper == null) {
-      helper = SIPUAHelper();
-      registerState = helper.registerState;
-      helper.addSipUaHelperListener(this);
-
       UaSettings settings = UaSettings();
-
       settings.webSocketUrl = SIP_WSS;
       settings.webSocketSettings.extraHeaders = {};
+
+      //settings.webSocketSettings.allowBadCertificate = true;
 
       // Пользователь сип по умолчанию
       //settings.authorizationUser = SIP_USER;
@@ -91,20 +106,22 @@ class SipConnection implements SipUaHelperListener {
       settings.uri = '${JabberConn.curUser.login}@$SIP_SERVER';
 
       settings.userAgent = '${newUserAgent}_$JABBER_SERVER';
-      this.userAgent = newUserAgent;
+      userAgent = newUserAgent;
       settings.dtmfMode = DtmfMode.RFC2833;
-      settings.iceServers = [{'url': 'stun:91.185.46.56:3478'}];
+      settings.iceServers = [
+        {'url': 'stun:91.185.46.56:3478'}
+      ];
 
+      helper = SIPUAHelper();
       helper.start(settings);
+      helper.addSipUaHelperListener(SipConnection());
 
       _startTimer();
-      _initRenderers();
-
-      helper.addSipUaHelperListener(this);
+      await _initRenderers();
     }
   }
 
-  void _initRenderers() async {
+  Future<void> _initRenderers() async {
     if (localRenderer != null) {
       await localRenderer.initialize();
     }
@@ -125,10 +142,14 @@ class SipConnection implements SipUaHelperListener {
   }
 
   void _startTimer() {
+    if (timer != null) {
+      timer.cancel();
+      timer = null;
+    }
     timer = Timer.periodic(Duration(seconds: 1), (Timer timer) {
+      inCallState = inCallStates.contains(state);
       if (call != null) {
         // Если мы в звонке
-        inCallState = inCallStates.contains(call.state);
         inCallTime += 1;
       } else {
         inCallState = false;
@@ -147,63 +168,85 @@ class SipConnection implements SipUaHelperListener {
     }
   }
 
+  void resetInCallState() {
+    /* Сброс различных состояний, которые могли быть выставлены в процессе звонка */
+    audioMuted = false;
+    videoMuted = false;
+    speakerOn = false;
+    hold = false;
+
+    inCallState = false;
+    incomingInProgress = false;
+
+    call = null;
+    stopSound();
+  }
+
   @override
-  void callStateChanged(Call call, CallState callState) {
+  Future<void> callStateChanged(Call curCall, CallState callState) async {
     state = callState.state;
 
-    if (callState.state == CallStateEnum.CALL_INITIATION) {
-      this.call = call;
+    if (state == CallStateEnum.CALL_INITIATION) {
+      call = curCall;
 
       if (call.direction == 'INCOMING') {
-        incomingInProgress = true;
+        if (!incomingInProgress) {
+          incomingInProgress = true;
+          Map<String, dynamic> parsedMsg = {
+            'action': 'call',
+            'sender': call.remote_identity,
+          };
+          Log.d(TAG, 'raise incoming call with $parsedMsg');
+        } else {
+          Log.w(TAG, 'incoming already in progress');
+        }
       }
       inCallTime = 0;
     }
 
-    if (callState.state == CallStateEnum.HOLD ||
-        callState.state == CallStateEnum.UNHOLD) {
-      hold = callState.state == CallStateEnum.HOLD;
+    if (state == CallStateEnum.HOLD ||
+        state == CallStateEnum.UNHOLD) {
+      hold = state == CallStateEnum.HOLD;
       holdOriginator = callState.originator;
       return;
     }
 
-    if (callState.state == CallStateEnum.MUTED) {
+    if (state == CallStateEnum.MUTED) {
       if (callState.audio) audioMuted = true;
       if (callState.video) videoMuted = true;
       return;
     }
 
-    if (callState.state == CallStateEnum.UNMUTED) {
+    if (state == CallStateEnum.UNMUTED) {
       if (callState.audio) audioMuted = false;
       if (callState.video) videoMuted = false;
       return;
     }
 
-    if (callState.state != CallStateEnum.STREAM) {
-      state = callState.state;
-    }
-
-    switch (callState.state) {
+    switch (state) {
       case CallStateEnum.STREAM:
         _handelStreams(callState);
         break;
       case CallStateEnum.ENDED:
       case CallStateEnum.FAILED:
-        CallScreenLogic.callEnded(inCallTime);
-        inCallState = false;
-        incomingInProgress = false;
+        CallScreenLogic.makeCallPressed = -1;
+        await CallScreenLogic.saveCallTime(inCallTime);
+        resetInCallState();
         break;
       case CallStateEnum.CONNECTING:
-      case CallStateEnum.ACCEPTED:
       case CallStateEnum.UNMUTED:
       case CallStateEnum.MUTED:
       case CallStateEnum.PROGRESS:
-      case CallStateEnum.CONFIRMED:
       case CallStateEnum.HOLD:
       case CallStateEnum.UNHOLD:
       case CallStateEnum.NONE:
       case CallStateEnum.CALL_INITIATION:
       case CallStateEnum.REFER:
+        break;
+      case CallStateEnum.ACCEPTED:
+      case CallStateEnum.CONFIRMED:
+        CallScreenLogic.makeCallPressed = -1;
+        stopSound();
         break;
     }
   }
@@ -225,19 +268,37 @@ class SipConnection implements SipUaHelperListener {
     }
   }
 
-  /* Инициация звонка */
-  void handleCall(String toPhoneNumber) {
-    handleHangup();
-    final phone = toPhoneNumber.replaceAll(RegExp('[^0-9]+'), '');
-    Log.d(TAG, 'calling to $phone');
-    helper.call(phone, false);
+  static Future<void> stopSound() async {
+    /* Затыкаемся с гудками входящими или исходящими */
+    if (audioPlayer != null) {
+      audioPlayer.pause();
+    }
   }
-  /* Инициация sip звонка */
-  void handleSipCall(String toPhoneNumber) {
-    handleHangup();
-    final phone = toPhoneNumber.replaceAll(RegExp('[^0-9]+'), '');
+
+  static Future<void> playOutgoingSound() async {
+    /* Издаем звук исходящего звонка (гудок) */
+    audioPlayer = await audioCache.loop(outgoingSound, stayAwake: true);
+  }
+
+  static Future<void> playIncomingSound() async {
+    /* Издаем звук входящего звонка (гудок) */
+    if (incomingInProgress) {
+      audioPlayer = await audioCache.loop(incomingSound, stayAwake: true);
+    }
+  }
+
+  /* call */
+  Future<void> handleCall(String phone) async {
     Log.d(TAG, 'calling to $phone');
-    helper.call('app_$phone', false);
+    await helper.call(phone, false);
+  }
+
+  /* SIP call */
+  Future<void> handleSipCall(String phone) async {
+    Log.d(TAG, 'SIP calling to $phone');
+    //CallScreenLogic.makeCallPressed = 30; // Задаем не сбрасывание кнопки
+    await helper.call('app_$phone', false);
+    //Future.delayed(Duration(seconds: 1), playOutgoingSound);
   }
 
   /* Прием входящего */
@@ -254,7 +315,11 @@ class SipConnection implements SipUaHelperListener {
     call.answer(helper.buildCallOptions(true));
   }
 
-  void handleHangup() {
+  Future<void> handleHangup() async {
+    if (pendingCall != null) {
+      pendingCall.cancel();
+    }
+    stopSound();
     if (call != null) {
       try {
         call.hangup();
@@ -265,13 +330,9 @@ class SipConnection implements SipUaHelperListener {
     call = null;
   }
 
-  void handleAccept() {
-    call.answer(helper.buildCallOptions());
-  }
-
-  void switchCamera() {
+  Future<void> switchCamera() async {
     if (localStream != null) {
-      Helper.switchCamera(localStream.getVideoTracks()[0]);
+      await Helper.switchCamera(localStream.getVideoTracks()[0]);
     }
   }
 
@@ -313,13 +374,13 @@ class SipConnection implements SipUaHelperListener {
   }
 
   @override
-  void onNewMessage(SIPMessageRequest msg) {
-  }
+  void onNewMessage(SIPMessageRequest msg) {}
 
   @override
   void registrationStateChanged(RegistrationState registrationState) {
     registerState = registrationState;
-    Log.w(TAG, ' --- Register state ${registerState.state.toString()}, ${registerState.cause.toString()}');
+    Log.w(TAG,
+        ' --- Register state ${registerState.state.toString()}, ${registerState.cause.toString()}');
 /*
     if (registrationState.state == RegistrationStateEnum.REGISTERED) {
       _helper.call('sip:83952959223@calls.223-223.ru', false); // падает, если с видео
@@ -329,6 +390,6 @@ class SipConnection implements SipUaHelperListener {
 
   @override
   void transportStateChanged(TransportState state) {
+    print('-------------TRANSPORT state ${state.state.toString()}, cause ${state.cause.toString()}');
   }
-
 }

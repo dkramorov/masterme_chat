@@ -17,6 +17,7 @@ import 'package:masterme_chat/screens/core/tab_profile_view.dart';
 import 'package:masterme_chat/screens/core/tab_roster_view.dart';
 import 'package:masterme_chat/screens/logic/login_logic.dart';
 import 'package:masterme_chat/screens/logic/roster_logic.dart';
+import 'package:masterme_chat/services/call_keeper.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/services/push_manager.dart';
 import 'package:masterme_chat/services/update_manager.dart';
@@ -54,6 +55,8 @@ class _RootScreenState extends State<RootScreen> {
   StreamSubscription connectionSubscription;
   StreamSubscription presenceSubscription;
   StreamSubscription rosterSubscription;
+
+  bool askPermsPhoneAccountsOpened = false;
 
   int _pageIndex = 0;
   String title = NavigationData.nav[0]['title'];
@@ -309,15 +312,15 @@ class _RootScreenState extends State<RootScreen> {
     }
   }
 
+  void _onPageChanged(int page) {
+    setState(() {
+      title = NavigationData.nav[page]['title'];
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     listenConnectionStream();
-
-    void _onPageChanged(int page) {
-      setState(() {
-        title = NavigationData.nav[page]['title'];
-      });
-    }
 
     return Scaffold(
       appBar: AppBar(

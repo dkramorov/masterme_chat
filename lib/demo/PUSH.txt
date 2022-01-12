@@ -1,0 +1,232 @@
+# FIX (close Android Studio before)
+dart pub global activate devtools -v 2.8.0
+
+Unhandled exception:
+Invalid argument(s): A directory corresponding to fileSystemPath "/Users/jocker/.pub-cache/hosted/pub.dartlang.org/devtools-2.9.2/build" could not be found
+#0      createStaticHandler (package:shelf_static/src/static_handler.dart:50:5)
+#1      defaultHandler (package:devtools_server/src/external_handlers.dart:38:23)
+<asynchronous suspension>
+#2      serveDevTools (package:devtools_server/src/server.dart:215:15)
+<asynchronous suspension>
+#3      serveDevToolsWithArgs (package:devtools_server/src/server.dart:73:10)
+<asynchronous suspension>
+Failed to launch DevTools: TimeoutException after 0:00:10.000000: Future not completed
+
+
+
+AndroidManifest.xml
+    <uses-permission android:name="android.permission.BIND_TELECOM_CONNECTION_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
+        <service android:name="io.wazo.callkeep.VoiceConnectionService"
+            android:label="Wazo"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
+
+
+implementing plugin to Application.java like below solved my problem.
+
+package com.xxxxxxxxx.callkit;
+
+import io.flutter.app.FlutterApplication;
+import io.flutter.plugin.common.PluginRegistry;
+import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
+import io.flutter.plugins.GeneratedPluginRegistrant;
+import io.flutter.plugins.firebasemessaging.FlutterFirebaseMessagingService;
+import io.flutter.plugins.firebasemessaging.FirebaseMessagingPlugin;
+import com.github.cloudwebrtc.flutter_callkeep.FlutterCallkeepPlugin;
+
+public class Application extends FlutterApplication implements PluginRegistrantCallback {
+
+    @Override
+
+    public void onCreate() {
+        super.onCreate();
+        FlutterFirebaseMessagingService.setPluginRegistrant(this);
+    }
+
+    @Override
+    public void registerWith(PluginRegistry pluginRegistry) {
+
+        FirebaseMessagingPlugin.registerWith(pluginRegistry.registrarFor("io.flutter.plugins.firebasemessaging.FirebaseMessagingPlugin"));
+        FlutterCallkeepPlugin.registerWith(pluginRegistry.registrarFor("com.github.cloudwebrtc.flutter_callkeep"));
+    }
+}
+
+
+
+
+https://developer.apple.com/documentation/bundleresources/information_property_list/uibackgroundmodes
+    Info.plist:
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>voip</string>
+		<string>remote-notification</string>
+	</array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+   	<false/>
+CallKit требует background services в capabilities
+!!! CallKit doesn't work on iOS simulators !!!
+
+BACKGROUND PROCESSING
+https://medium.com/vrt-digital-studio/flutter-workmanager-81e0cfbd6f6e
+
+# ПОСМОТРЕТЬ:
+https://github.com/voximplant/flutter_callkit
+https://github.com/peerwaya/flutter_call_kit
+
+I/flutter ( 6907): Unable to handle incoming background message.
+I/flutter ( 6907): MissingPluginException(No implementation found for method Firebase#initializeCore on channel plugins.flutter.io/firebase_core)
+https://github.com/FirebaseExtended/flutterfire/issues/4455
+<key>flutter_apns.disable_firebase_core</key>
+<false/>
+
+
+
+https://pub.dev/packages/callkeep/versions/0.2.4/example
+https://github.com/flutter-webrtc/callkeep
+
+https://github.com/FirebaseExtended/flutterfire/issues/6112
+
+    Notification message: These messages trigger the onMessage() callback only (mode foreground),
+                          not trigger the onBackgroundMessage() callback (mode backgroud, terminal)
+    Data message: These messages trigger both the onMessage() and onBackgroundMessage() callback
+                  (mode foreground and background)
+                  So, my solutions is that send 2 messages (1 notification message and 1 data message).
+
+
+    DATA MESSAGES:
+    On Android, set the priority field to high.
+    On Apple (iOS & macOS), set the content-available field to true.
+
+Please read
+https://firebase.flutter.dev/docs/messaging/usage#message-types
+https://firebase.flutter.dev/docs/messaging/usage#low-priority-messages
+and take a look at #4611 (comment) for an example of how to send messages through the API instead of firebase console.
+
+The official payload reference is at https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages
+
+Closing this since background messages without content-available
+will not wake the process and cannot trigger the background handler on iOS.
+This is the native behavior on iOS and we do not control it.
+FYI if you send data-only notifications the FCM v1 API will automatically add content-available for iOS.
+
+
+
+
+
+you have to separate the notifications,
+one notification message that contains notification,
+one data message that contains data.
+on background mode, when the data message arrived, it will trigger onBackgroundMessage(),
+after that you read the data message to get data in the onBackgroundMessage() method.
+
+Example my code:
+    On backend:
+    notification message:
+{
+    "to": "xyz",
+    "notification": {
+      "title": "there is a new message",
+      "body": "A sent you a message"
+    },
+}
+    data message: don't foget set content_available and priority
+{
+    "to" : "xyz",
+    "data" : {
+        "badge":10
+     },
+    "content_available": true,
+    "priority": "high"
+}
+
+    On frontend (main.dart): please focus to comment line
+
+// callback when data message arrived in background
+Future firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  if (message.data != null && message.data['badge'] != null) {
+    int badge = int.parse(message.data['badge']);
+    if (badge > 0) {
+      FlutterAppBadger.updateBadgeCount(badge);
+    } else {
+      FlutterAppBadger.removeBadge();
+    }
+  }
+}
+...
+
+Future main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation()
+      ?.createNotificationChannel(channel);
+
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+    provisional: false
+  );
+  runApp(MyApp());
+}
+
+class _MyAppState extends State {
+...
+@override
+  void initState() {
+    super.initState();
+    if (Platform.isIOS) {
+      FirebaseMessaging.instance.requestPermission();
+    }
+    FirebaseMessaging.instance
+        .getInitialMessage()
+        .then((RemoteMessage message) {
+      if (message != null) {
+        print("Message received");
+      }
+    });
+
+   // callback when data message or notification message arrived in foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // proccess notification message**
+      RemoteNotification notification = message.notification;
+      AndroidNotification android = message.notification?.android;
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              channel.id,
+              channel.name,
+              channel.description,
+              icon: 'app_icon',
+            ),
+          ),
+        );
+      }
+     // process data message
+      if (message.data != null && message.data['badge'] != null) {
+        int badge = int.parse(message.data['badge']);
+        if (badge > 0) {
+          FlutterAppBadger.updateBadgeCount(badge);
+        } else {
+          FlutterAppBadger.removeBadge();
+        }
+      }
+    });

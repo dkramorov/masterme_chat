@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
+import 'package:masterme_chat/services/sip_connection.dart';
 
 abstract class AbstractScreenLogic {
   static const TAG = 'AbstractScreenLogic';
@@ -33,8 +34,9 @@ abstract class AbstractScreenLogic {
     // функция для override
   }
 
-  /* Проверяем состояние экрана ростера на соответствие JabberConn состоянию */
+  /* Проверяем состояние на соответствие JabberConn состоянию */
   Future<void> checkState() async {
+
     // Состояние не поменялось
     if (JabberConn.loggedIn == loggedIn && JabberConn.curUser == curUser) {
       return;

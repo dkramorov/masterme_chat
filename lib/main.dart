@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:masterme_chat/screens/add2roster.dart';
 import 'package:masterme_chat/screens/auth/auth.dart';
 import 'package:masterme_chat/screens/call.dart';
+import 'package:masterme_chat/screens/call/incoming_call.dart';
 import 'package:masterme_chat/screens/chat.dart';
 import 'package:masterme_chat/screens/companies/companies_listing_screen.dart';
 import 'package:masterme_chat/screens/companies/company_wizard_screen.dart';
@@ -51,6 +52,7 @@ void main() {
     print("StackTrace :  ${details.stack}");
     print("----------------------");
   };
+
   runApp(MyApp());
 }
 
@@ -66,11 +68,7 @@ class MyApp extends StatelessWidget {
         //scaffoldBackgroundColor: PRIMARY_BG_COLOR,
       ),
       initialRoute: RootScreen.id,
-      //initialRoute: CallScreen.id,
-      //initialRoute: TestScreen.id,
-      //initialRoute: ChatVariant3.id,
-      //initialRoute: AuthScreen.id,
-      //initialRoute: RegWizardScreen.id,
+      //initialRoute: IncomingCallScreen.id,
       routes: {
         //HomeScreen.id: (context) => HomeScreen(), // Depricated
         ChatScreen.id: (context) => ChatScreen(),
@@ -89,6 +87,8 @@ class MyApp extends StatelessWidget {
 
         CompaniesListingScreen.id: (context) => CompaniesListingScreen(),
         CompanyWizardScreen.id: (context) => CompanyWizardScreen(),
+
+        //IncomingCallScreen.id: (context) => IncomingCallScreen(),
       },
     );
   }

@@ -7,6 +7,8 @@ import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/models/companies/orgs.dart';
 import 'package:masterme_chat/screens/logic/call_logic.dart';
+import 'package:masterme_chat/services/jabber_connection.dart';
+import 'package:masterme_chat/services/sip_connection.dart';
 import 'package:masterme_chat/widgets/companies/company_logo.dart';
 import 'package:masterme_chat/widgets/phone/action_button.dart';
 import 'package:masterme_chat/widgets/phone/phone_helpers.dart';
@@ -74,7 +76,6 @@ class _CallScreenState extends State<CallScreen> {
     logic.parseArguments(context);
     Future.delayed(Duration.zero).then((_) async {
       if (mounted) {
-        logic.checkUserReg();
         logic.checkState();
       }
     });
@@ -115,7 +116,7 @@ class _CallScreenState extends State<CallScreen> {
       return;
     }
     proximitySubscription = proximityEvents.listen((ProximityEvent event) {
-      Log.d(TAG, '$event');
+      Log.d(TAG, 'proximityEvent: $event');
     });
   }
 
@@ -208,13 +209,13 @@ class _CallScreenState extends State<CallScreen> {
     if (!phoneFormKey.currentState.validate()) {
       return;
     }
-    if (inCallState) {
+    if (SipConnection.inCallState) {
       Log.i(TAG, 'already in call');
     }
     phoneFormKey.currentState.save();
 
-    // Надо поменять статус и кнопки
-    if (logic.sipConnection == null) {
+    /*
+    if (SipConnection.helper == null || !SipConnection.helper.registered) {
       openInfoDialog(
           context,
           null,
@@ -222,12 +223,13 @@ class _CallScreenState extends State<CallScreen> {
           'Произошла ошибка, попробуйте зарегистрироваться повторно.' +
               'Если ошибка не исчезает, пожалуйста, сообщите нам',
           'Понятно');
+
       return;
     }
-
+    */
     bool hasPerm = await permsCheck(Permission.microphone, 'микрофон', context);
     if (hasPerm) {
-      logic.makeCall(phoneNumber);
+      await logic.makeCall(phoneNumber);
     }
   }
 
@@ -310,7 +312,6 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Widget buildCompanyInfo() {
-    print(company);
     if (company == null) {
       return SizedBox();
     }
@@ -351,7 +352,7 @@ class _CallScreenState extends State<CallScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 330,
+              width: 320,
               padding: EdgeInsets.all(15.0),
               child: Form(
                 key: phoneFormKey,
@@ -415,11 +416,6 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Future.delayed(Duration.zero).then((_) async {
-      if (mounted) {
-        logic.checkUserReg();
-      }
-    });
 
     if (!widget.inScaffold) {
       return Container(

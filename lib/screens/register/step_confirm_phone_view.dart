@@ -180,7 +180,7 @@ class _StepConfirmPhoneViewState extends State<StepConfirmPhoneView> {
                   Container(
                     margin: PAD_SYM_V20,
                     alignment: Alignment.center,
-                    width: _screenWidth / 2.4,
+                    width: _screenWidth / 2,
                     child: FocusScope(
                       node: _scopeNode,
                       child: Row(

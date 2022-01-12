@@ -83,6 +83,6 @@ class TelegramBot {
       endpoint,
       queryParameters: params,
     );
-    print('-----> ${response.toString()}');
+    print('Telegram response > ${response.toString()}');
   }
 }

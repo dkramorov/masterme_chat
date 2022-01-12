@@ -36,13 +36,17 @@ class CompaniesUpdateVersion {
   static Future<int> downloadUpdateVersion() async {
     String now = DateTime.now().toIso8601String(); // no cache param
     final url = '$DB_SERVER$DB_UPDATE_VERSION?t=$now';
-    Log.d(TAG, url);
+    if(DEBUG) {
+      Log.d(TAG, url);
+    }
     final String destFolder = await SaveNetworkFile.makeAppFolder();
     final File dest = File(destFolder + '/version.json');
     Dio dio = new Dio();
 
     (dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (HttpClient client) {
-      print('onHttpClientCreate entered...');
+      if(DEBUG) {
+        print('onHttpClientCreate entered...');
+      }
       client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
       return client;
     };
@@ -51,7 +55,9 @@ class CompaniesUpdateVersion {
       url,
       dest.path,
     );
-    Log.d(TAG, 'version number downloaded ${dest.path}');
+    if(DEBUG) {
+      Log.d(TAG, 'version number downloaded ${dest.path}');
+    }
     String resp = await dest.readAsString();
     CompaniesUpdateVersion response = parseResponse(resp);
 
