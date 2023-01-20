@@ -54,6 +54,3 @@ pubspec.lock
 /ios/*
 /.metadata
 /README.md
-
-# А то там конфиденциальные данные
-/lib/constants.dart
