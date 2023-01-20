@@ -87,7 +87,12 @@ class CompaniesUpdate {
       await downloadUpdate();
     }
     String content = await updateFile.readAsString();
-    return parseResponse(content);
+    try {
+      return parseResponse(content);
+    } catch (ex) {
+      Log.e(TAG, '${ex.toString()} : parseUpdateFile failed, dropping file...');
+      await updateFile.delete();
+    }
   }
 
   static Future<void> dropUpdate() async {

@@ -88,7 +88,9 @@ class UpdateManager {
         //Log.d(TAG, 'Update catContpos ${i + 1} / $catContposPages (${i * by} - ${i * by + by}), fieldsCount $fieldsCount');
         List<dynamic> catContpos = await CatContpos()
             .prepareTransactionQueries(data.catContpos, i * by, i * by + by);
-        catContposQueriesPages.add(catContpos);
+        if (catContpos.length > 0) {
+          catContposQueriesPages.add(catContpos);
+        }
         //await CatContpos().transaction(catContpos);
       }
       await CatContpos().massTransaction(catContposQueriesPages);
@@ -111,7 +113,9 @@ class UpdateManager {
         //Log.d(TAG, 'Update catalogue ${i + 1} / $cataloguePages (${i * by} - ${i * by + by}), fieldsCount $fieldsCount');
         List<dynamic> catalogue = await Catalogue()
             .prepareTransactionQueries(data.catalogue, i * by, i * by + by);
-        catalogueQueriesPages.add(catalogue);
+        if (catalogue.length > 0) {
+          catalogueQueriesPages.add(catalogue);
+        }
         //await Catalogue().transaction(catalogue);
       }
       await Catalogue().massTransaction(catalogueQueriesPages);
@@ -142,7 +146,9 @@ class UpdateManager {
         //Log.d(TAG, 'Update cats ${i + 1} / $catsPages (${i * by} - ${i * by + by}), fieldsCount $fieldsCount');
         List<dynamic> cats = await Cats()
             .prepareTransactionQueries(data.cats, i * by, i * by + by);
-        catsQueriesPages.add(cats);
+        if (cats.length > 0) {
+          catsQueriesPages.add(cats);
+        }
         //await Cats().transaction(cats);
       }
       await Cats().massTransaction(catsQueriesPages);
@@ -169,7 +175,9 @@ class UpdateManager {
         //Log.d(TAG, 'Update orgs ${i + 1} / $orgsPages (${i * by} - ${i * by + by}), fieldsCount $fieldsCount');
         List<dynamic> orgs = await Orgs()
             .prepareTransactionQueries(data.orgs, i * by, i * by + by);
-        orgsQueriesPages.add(orgs);
+        if (orgs.length > 0) {
+          orgsQueriesPages.add(orgs);
+        }
         //await Orgs().transaction(orgs);
       }
       await Orgs().massTransaction(orgsQueriesPages);
@@ -196,7 +204,9 @@ class UpdateManager {
         //Log.d(TAG, 'Update branches ${i + 1} / $branchesPages (${i * by} - ${i * by + by}), fieldsCount $fieldsCount');
         List<dynamic> branches = await Branches()
             .prepareTransactionQueries(data.branches, i * by, i * by + by);
-        branchesQueriesPages.add(branches);
+        if (branches.length > 0) {
+          branchesQueriesPages.add(branches);
+        }
         //await Branches().transaction(branches);
       }
       await Branches().massTransaction(branchesQueriesPages);
@@ -223,7 +233,9 @@ class UpdateManager {
         //Log.d(TAG, 'Update phones ${i + 1} / $phonesPages (${i * by} - ${i * by + by}), fieldsCount $fieldsCount');
         List<dynamic> phones = await Phones()
             .prepareTransactionQueries(data.phones, i * by, i * by + by);
-        phonesQueriesPages.add(phones);
+        if (phones.length > 0) {
+          phonesQueriesPages.add(phones);
+        }
         //await Phones().transaction(phones);
       }
       await Phones().massTransaction(phonesQueriesPages);
@@ -250,7 +262,9 @@ class UpdateManager {
         //Log.d(TAG, 'Update addresses ${i + 1} / $addressesPages (${i * by} - ${i * by + by}), fieldsCount $fieldsCount');
         List<dynamic> addresses = await Addresses()
             .prepareTransactionQueries(data.addresses, i * by, i * by + by);
-        addressesQueriesPages.add(addresses);
+        if (addresses.length > 0) {
+          addressesQueriesPages.add(addresses);
+        }
         //await Addresses().transaction(addresses);
       }
       await Addresses().massTransaction(addressesQueriesPages);

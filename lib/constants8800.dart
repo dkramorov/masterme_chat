@@ -144,7 +144,7 @@ const PAD_SYM_V20 = EdgeInsets.symmetric(vertical: 20);
 // STRING
 const SGN_SIGNIN_TEXT = 'Вход';
 const SGN_SIGNOUT_TEXT = 'Выход';
-const SGN_NOACC_TEXT = 'Не зарегистрирован? Самое время!';
+const SGN_NOACC_TEXT = 'Не зарегистрированы? Самое время!';
 const SGN_SIGNUP_TEXT = 'Регистрация';
 const SGN_PHONE_TEXT = 'Ваш телефон';
 const SGN_HINT_PHONE_TEXT = '89148223223';

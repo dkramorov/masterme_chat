@@ -119,6 +119,7 @@ class _TabCompanyViewState extends State<TabCompanyView> {
               Navigator.pushNamed(context, CallScreen.id, arguments: {
                 'curPhone': phone,
                 'curCompany': widget.company,
+                'startCall': true,
               });
             },
           ),

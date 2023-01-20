@@ -270,8 +270,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         flexibleSpace: SafeArea(
           child: ChatHeaderWidget(
-            name: logic.companion.getName(),
-            image: logic.companion.getAvatar(),
+            contact: logic.companion,
           ),
         ),
       ),

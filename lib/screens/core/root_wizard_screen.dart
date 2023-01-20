@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/db/user_chat_model.dart';
+
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/screens/auth/auth.dart';
@@ -17,12 +18,14 @@ import 'package:masterme_chat/screens/core/tab_profile_view.dart';
 import 'package:masterme_chat/screens/core/tab_roster_view.dart';
 import 'package:masterme_chat/screens/logic/login_logic.dart';
 import 'package:masterme_chat/screens/logic/roster_logic.dart';
-import 'package:masterme_chat/services/call_keeper.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 import 'package:masterme_chat/services/push_manager.dart';
+import 'package:masterme_chat/services/sip_connection.dart';
 import 'package:masterme_chat/services/update_manager.dart';
+import 'package:masterme_chat/widgets/call/in_call_widget.dart';
 import 'package:modal_progress_hud/modal_progress_hud.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:screen/screen.dart';
 
 // xmpp
 import 'package:xmpp_stone/xmpp_stone.dart' as xmpp;
@@ -36,6 +39,7 @@ class RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<RootScreen> {
   static const TAG = 'RootScreen';
+
   bool loading = false;
   int connectionInstanceKey = 0;
   Map<String, dynamic> userData = {};
@@ -57,12 +61,10 @@ class _RootScreenState extends State<RootScreen> {
   StreamSubscription rosterSubscription;
 
   bool askPermsPhoneAccountsOpened = false;
-
   int _pageIndex = 0;
   String title = NavigationData.nav[0]['title'];
 
   UserChatModel curUser;
-  bool loggedIn = false;
 
   Future<void> init() async {
     final PushNotificationsManager pushManager = PushNotificationsManager();
@@ -85,6 +87,18 @@ class _RootScreenState extends State<RootScreen> {
     loginLogic = LoginScreenLogic(setStateCallback: setStateCallback);
     rosterLogic = RosterScreenLogic(setStateCallback: setStateCallback);
     checkUserInDb(loginLogic);
+
+    // Проверка на то, что приложение было запущено с payload
+    PushNotificationsManager.localNotificationsPlugin
+        .getNotificationAppLaunchDetails()
+        .then((result) async {
+      if (result.didNotificationLaunchApp) {
+        Log.w(TAG,
+            'App lauched from nofification with payload: ${result.payload}');
+        JabberConn.pushStreamController.add(result.payload);
+      }
+    });
+
     super.initState();
   }
 
@@ -181,11 +195,36 @@ class _RootScreenState extends State<RootScreen> {
     if (pushSubscription == null) {
       // Переадресация по пушу
       pushSubscription = JabberConn.pushStream.listen((event) {
+        // call_89148959223
+        if (event == null) {
+          Log.w(TAG, '----------------- listenConnectionStream: event is null');
+          return;
+        }
+        if (event.startsWith('call_')) {
+          Screen.keepOn(true).then((success) {
+
+            //SipConnection().init(widget.receiver);
+
+            showInCallOverlay(event);
+            SipConnection.playIncomingSound();
+
+            setState(() {
+              // Просто обновляем состояние после показа оверлея
+            });
+          });
+          return;
+        }
         // 89148959223=>89999999999
+        if (!event.contains('=>')) {
+          Log.w(TAG,
+              'listenConnectionStream: event not contains "=>", event: $event');
+          return;
+        }
         String fromUser = event.split('=>')[0];
         for (ContactChatModel user in JabberConn.contactsList) {
           if (user.login.contains(fromUser)) {
             openChat(user);
+            return;
           }
         }
       });
@@ -213,15 +252,16 @@ class _RootScreenState extends State<RootScreen> {
         // то curUser будет null,
         // потому что эта страничка слушается параллельно с AuthScreen
 
-        // Если мы авторизуемся с этой странички
         if (curUser != null) {
-          loginLogic
-              .authorizationSuccess(curUser.login, curUser.passwd)
-              .then((success) {
-            rosterLogic.loadChatUsers();
-          });
+          // Если мы авторизуемся с этой странички
+          if (mounted && ModalRoute.of(context).isCurrent) {
+            loginLogic
+                .authorizationSuccess(curUser.login, curUser.passwd)
+                .then((success) {
+              rosterLogic.loadChatUsers();
+            });
+          }
         }
-
         loginLogic.checkState();
       } else if (event == xmpp.XmppConnectionState.AuthenticationFailure) {
         if (ModalRoute.of(context).isCurrent) {
@@ -263,11 +303,21 @@ class _RootScreenState extends State<RootScreen> {
       if (newState['loading'] != null && newState['loading'] != loading) {
         loading = newState['loading'];
       }
-      if (newState['loggedIn'] != null && newState['loggedIn'] != loggedIn) {
-        loggedIn = newState['loggedIn'];
+      if (newState['loggedIn'] != null &&
+          newState['loggedIn'] != JabberConn.loggedIn) {
+        JabberConn.loggedIn = newState['loggedIn'];
       }
       if (newState['curUser'] != null && newState['curUser'] != curUser) {
         curUser = newState['curUser'];
+      }
+      if (newState['incomingCallFrom'] != null) {
+        /*
+        Future.delayed(Duration.zero, () async {
+          Navigator.pushNamed(context, CallScreen.id, arguments: {
+            'incomingCallFrom': newState['incomingCallFrom'],
+          });
+        });
+        */
       }
       if (newState['chatUsers'] != null) {
         Future.delayed(Duration.zero, () async {

@@ -8,6 +8,7 @@ import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/models/companies/catalogue.dart';
 import 'package:masterme_chat/screens/companies/companies_listing_screen.dart';
 import 'package:masterme_chat/screens/logic/companies_logic.dart';
+import 'package:masterme_chat/widgets/call/in_call_widget.dart';
 import 'package:masterme_chat/widgets/companies/catalogue_in_update.dart';
 import 'package:masterme_chat/widgets/companies/floating_search_widget.dart';
 
@@ -39,6 +40,9 @@ class _TabHomeViewState extends State<TabHomeView> {
     // Прогружаем данные
     logic.loadCatalogue();
     super.initState();
+
+    // Тестируем оверлей
+    //showInCallOverlay('89999999999=>89148959223');
   }
 
   @override
@@ -238,6 +242,14 @@ class _TabHomeViewState extends State<TabHomeView> {
                       items: imageSliders,
                     ),
 
+/*
+                    ActionButton(
+                      title: 'test',
+                      onPressed: () {
+                        PushNotificationsManager.showNotificationCustomSound();
+                      },
+                    ),
+ */
                   ],
                 ),
               ),

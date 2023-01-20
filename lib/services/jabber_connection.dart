@@ -68,6 +68,10 @@ class JabberConn {
 
   static healthcheck() {
     healthCheckTimer = Timer.periodic(Duration(seconds: 3), (Timer t) async {
+
+      if (JabberConn.TOKEN_FCM == null) {
+        Log.w(TAG, 'token empty');
+      }
       final reconnectionManagerExists = connection?.reconnectionManager;
       final bool reconnectionManagerActive =
           reconnectionManagerExists != null &&

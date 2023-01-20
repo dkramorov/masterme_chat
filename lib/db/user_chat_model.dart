@@ -64,7 +64,7 @@ class UserChatModel extends AbstractModel {
     */
     if (this.photo != null && this.photo != '') {
       if (!File(this.photo).existsSync()) {
-        dowloadPhoto(ifDownloaded: ifDownloaded);
+        downloadPhoto(ifDownloaded: ifDownloaded);
         return DEFAULT_AVATAR;
       }
       return this.photo;
@@ -72,7 +72,7 @@ class UserChatModel extends AbstractModel {
     return DEFAULT_AVATAR;
   }
 
-  Future<void> dowloadPhoto({Function ifDownloaded}) async {
+  Future<void> downloadPhoto({Function ifDownloaded}) async {
     /* Загружаем аватарку по ссылке
        ifDownloaded вызывается после обновления
     */
@@ -145,12 +145,13 @@ class UserChatModel extends AbstractModel {
     final bool curUserWithImage = curUserPhoto != null && curUserPhoto != '';
     if (vCardWithImage && !curUserWithImage) {
       SaveNetworkFile.getFileFromNetwork(vCard.imageByUrl).then((photo) {
-        JabberConn.curUser.updatePartial(JabberConn.curUser.id, {
-          'photo': photo.path,
-          'photoUrl': vCard.imageByUrl,
-        });
-        JabberConn.curUser.photo = photo.path;
+        JabberConn.curUser.photo = photo != null ? photo.path : null;
         JabberConn.curUser.photoUrl = vCard.imageByUrl;
+        JabberConn.curUser.updatePartial(JabberConn.curUser.id, {
+          'photo': JabberConn.curUser.photo,
+          'photoUrl': JabberConn.curUser.photoUrl,
+        });
+
       });
     }
     Map<String, String> kwargs = {};

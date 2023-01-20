@@ -7,6 +7,8 @@ import io.flutter.plugins.GeneratedPluginRegistrant;
 import io.flutter.plugins.firebasemessaging.FlutterFirebaseMessagingService;
 import io.flutter.plugins.firebasemessaging.FirebaseMessagingPlugin;
 //import com.github.cloudwebrtc.flutter_callkeep.FlutterCallkeepPlugin;
+import com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin;
+//import me.carda.awesome_notifications.AwesomeNotificationsPlugin;
 
 public class Application extends FlutterApplication implements PluginRegistrantCallback {
 
@@ -20,5 +22,7 @@ public class Application extends FlutterApplication implements PluginRegistrantC
     public void registerWith(PluginRegistry pluginRegistry) {
         FirebaseMessagingPlugin.registerWith(pluginRegistry.registrarFor("io.flutter.plugins.firebasemessaging.FirebaseMessagingPlugin"));
         //FlutterCallkeepPlugin.registerWith(pluginRegistry.registrarFor("com.github.cloudwebrtc.flutter_callkeep.FlutterCallkeepPlugin"));
+        FlutterLocalNotificationsPlugin.registerWith(pluginRegistry.registrarFor("com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin"));
+        //AwesomeNotificationsPlugin.registerWith(pluginRegistry.registrarFor("me.carda.awesome_notifications.AwesomeNotificationsPlugin"));
     }
 }

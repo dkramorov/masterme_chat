@@ -35,7 +35,6 @@ class _AuthScreenState extends State<AuthScreen> {
   String passwd;
 
   // JabberConn для отслеживания изменения состояния
-  bool loggedIn = false;
   int connectionInstanceKey = 0;
 
   final connectionErrorSnackBar = SnackBar(
@@ -71,10 +70,6 @@ class _AuthScreenState extends State<AuthScreen> {
     // если вызывать раньше чем закончится build
     Future.delayed(Duration.zero, () async {
       Navigator.pop(context);
-      /*
-      Navigator.pushNamed(context, RootScreen.id, //RosterScreen.id,
-          arguments: logic.getPushArguments());
-       */
     });
   }
 
@@ -84,15 +79,8 @@ class _AuthScreenState extends State<AuthScreen> {
       if (state['loading'] != null && state['loading'] != loading) {
         loading = state['loading'];
       }
-      if (state['loggedIn'] != null && state['loggedIn'] != loggedIn) {
-        loggedIn = state['loggedIn'];
-
-        // Переадресация по пушу TODO: убрать отсюда
-        if (ModalRoute.of(context).isCurrent) {
-          if (logic.pushTo != null && logic.pushFrom != null) {
-            gotoRootScreen();
-          }
-        }
+      if (state['loggedIn'] != null && state['loggedIn'] != JabberConn.loggedIn) {
+        JabberConn.loggedIn = state['loggedIn'];
       }
       if (state['autoLogin'] != null && state['autoLogin'] != autoLogin) {
         autoLogin = state['autoLogin'];
@@ -115,7 +103,7 @@ class _AuthScreenState extends State<AuthScreen> {
       login = state['login'];
       passwd = state['passwd'];
       listenConnectionStream();
-    } else if (loggedIn) {
+    } else if (JabberConn.loggedIn) {
       listenConnectionStream();
     }
   }
@@ -136,13 +124,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     connectionSubscription = JabberConn.connectionStream.listen((event) {
       if (event == xmpp.XmppConnectionState.Ready) {
-        // Только если мы на этой страничке
-        // Записываем в базень логин пароль
-        logic.checkState();
         if (mounted && ModalRoute.of(context).isCurrent) {
-          logic.authorizationSuccess(login, passwd).then((success) {
-            gotoRootScreen();
-          });
+          logic.authorizationSuccess(login, passwd);
+          gotoRootScreen();
         }
       } else if (event == xmpp.XmppConnectionState.AuthenticationFailure) {
         if (ModalRoute.of(context).isCurrent) {
@@ -193,7 +177,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 fit: BoxFit.fill,
                               ),
                             ),
-                            loggedIn
+                            JabberConn.loggedIn
                                 ? Container(
                                     margin: PAD_SYM_V20,
                                     child: Text(
@@ -211,8 +195,8 @@ class _AuthScreenState extends State<AuthScreen> {
                           ],
                         ),
                         SIZED_BOX_H30,
-                        loggedIn ? SignOutForm(logic) : SignInForm(logic),
-                        loggedIn ? Container() : RegLinks(logic),
+                        JabberConn.loggedIn ? SignOutForm(logic) : SignInForm(logic),
+                        JabberConn.loggedIn ? Container() : RegLinks(logic),
                       ],
                     ),
                   ),

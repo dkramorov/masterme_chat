@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:masterme_chat/constants.dart';
-import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/helpers/save_network_file.dart';
 
@@ -59,10 +58,26 @@ class ContactChatModel extends AbstractModel {
     return this.login;
   }
 
-  String getAvatar() {
+  Widget buildAvatar() {
+    String pic = this.avatar;
+    if (pic == null || pic == '' || !File(pic).existsSync()) {
+      pic = DEFAULT_AVATAR;
+    }
+    return CircleAvatar(
+      radius: 30,
+      backgroundColor: Colors.transparent,
+      //backgroundImage: AssetImage(pic),
+      backgroundImage:
+          pic == DEFAULT_AVATAR ? AssetImage(pic) : FileImage(File(pic)),
+    );
+  }
+
+  Future<String> getAvatar({bool withDownload = false}) async {
     if (this.avatar != null && this.avatar != '') {
-      if (!File(this.avatar).existsSync()) {
-        dowloadAvatar();
+      if (!await File(this.avatar).exists()) {
+        if (withDownload) {
+          dowloadAvatar();
+        }
         return DEFAULT_AVATAR;
       }
       return this.avatar;

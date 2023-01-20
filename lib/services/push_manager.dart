@@ -6,42 +6,25 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:masterme_chat/db/user_chat_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
+import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/screens/core/root_wizard_screen.dart';
 import 'package:masterme_chat/services/sip_connection.dart';
 import 'package:masterme_chat/services/telegram_bot.dart';
 import 'package:rxdart/subjects.dart';
-import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
-
-import 'call_keeper.dart';
 
 /*
 Доки:
 https://firebase.google.com/docs/cloud-messaging/auth-server
 https://firebase.google.com/docs/cloud-messaging/xmpp-server-ref
 
-Можно зазырить
-https://github.com/adamvduke/mod_interact ?
+Андроид входящий звонок через пушь виджет
+https://forasoft.com/blog/article/how-to-make-a-custom-android-call-notification-455
+https://jungleworks.com/calling-banner-how-to-make-an-incoming-call-notification-banner-in-android-using-service/
 
-https://github.com/dverdugo85/mod_fcm/blob/master/mod_fcm.erl
-
-https://github.com/sumaninster/ejabberd_offline_message/blob/master/mod_http_offline.erl
-https://github.com/jitendrapathak/ejabberd_push_toffline_users/blob/master/mod_ejabberd_offline_push_old.erl
-https://github.com/mrDoctorWho/ejabberd_mod_gcm/blob/master/src/mod_gcm.erl
-https://github.com/mrDoctorWho/ejabberd_mod_apns/blob/master/src/mod_apns.erl
-https://github.com/proger/mod_pushoff - на 18
-https://github.com/devsofpixel7/mod_offline_push/blob/master/src/mod_offline_push.erl на 18
-https://github.com/dverdugo85/pushoff/tree/master/mod_pushoff/src - на 19
-https://github.com/dverdugo85/push_off/blob/master/mod_pushoff/src/mod_pushoff.erl на 19
-
-https://github.com/kevb/mod_zeropush/blob/master/src/mod_zeropush.erl
-https://github.com/nobreak/mod_onesignal/blob/master/src/mod_onesignal.erl
-
-Можно адаптировать пуши
-https://github.com/pankajsoni19/fcm-erlang самостоятельный сервер, надо переделать под ejabberd (v1 поддержка)
-https://github.com/e4q/epns библиотечка - надо самостоятельно впиндюривать
+Плагин для андроид
+https://medium.com/litslink/flutter-how-to-create-your-own-native-notification-in-android-ba2bd2a5d97
 */
 
 /* Local Notifications */
@@ -59,29 +42,55 @@ class ReceivedNotification {
   final String payload;
 }
 
-/* Remote Notifications */
+Future<void> showIncomingCallNotificationTemplate(
+    Map<String, dynamic> parsedMsg) async {
+  /* Показываем пушь уведомление о входящем звонке по распарсенному пушу */
+  final String senderStr = parsedMsg['sender_str'];
+  final String sender = parsedMsg['sender'];
+  final String receiver = parsedMsg['receiver'];
+  final String name = parsedMsg['name'] != null
+      ? 'Звонок от ' + parsedMsg['name']
+      : 'Входящий звонок';
+  final String payload = 'call_' + sender + '=>' + receiver;
+  await PushNotificationsManager.localNotificationsPlugin.show(
+    PushNotificationsManager.NOTIFICATION_ID_CALL,
+    name,
+    senderStr,
+    NotificationDetails(
+        android: AndroidNotificationDetails(
+      PushNotificationsManager.channelId + '3',
+      PushNotificationsManager.channelName + '3',
+      PushNotificationsManager.channelDesc + '3',
+      importance: Importance.max,
+      priority: Priority.max,
+      fullScreenIntent: true,
+      // Дополнительные опции
+      channelShowBadge: true,
+      icon: '@mipmap/headset',
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/logo'),
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('ringtone'),
+    )),
+    payload: payload,
+  );
+}
+
 Future<Map<String, dynamic>> onBackgroundMessageHandler(
     Map<String, dynamic> message) async {
+  /* Обработчик push сообщения со свернутого (фонового) и выкинутого режима
+  */
   //await Firebase.initializeApp(); // Вызывает ошибку
 
-  Log.w('onBackgroundMessageHandler', '${message.toString()}');
-  String jabaAcc = '';
-  if (JabberConn.curUser != null) {
-    jabaAcc = JabberConn.curUser.login;
-  }
-  String sipAcc = '';
-  if (SipConnection.userAgent != null) {
-    sipAcc = SipConnection.userAgent;
-  }
-  TelegramBot().notificationResponse('onBackgroundMessageHandler ${message.toString()}' +
-      ', for account $jabaAcc, with sip $sipAcc');
+  final String tag = 'onBackgroundMessageHandler';
+  Log.w(tag, '${message.toString()}');
 
-  Map<String, dynamic> parsedMsg = PushNotificationsManager.parseIncomingPushNotification(message);
+  Map<String, dynamic> parsedMsg =
+      PushNotificationsManager.parseIncomingPushNotification(message);
   if (parsedMsg['action'] == 'call') {
-
+    Log.i(tag, '$parsedMsg');
+    await showIncomingCallNotificationTemplate(parsedMsg);
   }
   return message;
-
 }
 
 /* Local Notifications */
@@ -93,6 +102,9 @@ Future onDidReceiveLocalNotification(
 
 class PushNotificationsManager {
   static const TAG = 'PushNotificationsManager';
+  static const incomingPushMethod = MethodChannel('java/incomingPushMethod');
+  static const int NOTIFICATION_ID_CALL = 9;
+
   // Для получения ссылки на контекст
   // MaterialApp(navigatorKey: PushNotificationsManager.materialKey, ... // GlobalKey()
   // чтобы получить контекст PushNotificationsManager.materialKey.currentContext
@@ -110,36 +122,20 @@ class PushNotificationsManager {
 
   /* Local notifications */
   static const channelId = 'masterme.ru/mastermeNotificationsChannel';
+  static const channelKey =
+      'com.google.firebase.messaging.default_notification_channel_id';
   static const channelName = 'ChatChannel';
   static const channelDesc = 'Chat channel for messages';
-  static const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    channelId,
-    channelName,
-    channelDesc,
-    importance: Importance.max,
-  );
-
-  static const AndroidNotificationDetails androidPlatformChannelSpecifics =
-      AndroidNotificationDetails(
-    channelId,
-    channelName,
-    channelDesc,
-    importance: Importance.max,
-    priority: Priority.max,
-  );
 
   static final FlutterLocalNotificationsPlugin localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
-  static const NotificationDetails platformChannelSpecifics =
-  NotificationDetails(android: androidPlatformChannelSpecifics);
 
   final BehaviorSubject<ReceivedNotification>
       didReceiveLocalNotificationSubject =
       BehaviorSubject<ReceivedNotification>();
   final BehaviorSubject<String> selectNotificationSubject =
       BehaviorSubject<String>();
-  final MethodChannel platform =
-      MethodChannel('masterme.ru/mastermeNotificationsChannel');
+  final MethodChannel platform = MethodChannel(channelId);
   final InitializationSettings initializationSettings = InitializationSettings(
     android: AndroidInitializationSettings(
       '@drawable/app_icon',
@@ -148,7 +144,6 @@ class PushNotificationsManager {
       onDidReceiveLocalNotification: onDidReceiveLocalNotification,
     ),
   );
-  String selectedNotificationPayload;
 
   void dispose() {
     didReceiveLocalNotificationSubject.close();
@@ -159,6 +154,12 @@ class PushNotificationsManager {
       Map<String, dynamic> message) {
     Map<String, dynamic> result = {};
     Log.d(TAG, 'parseIncomingPushNotification ${message.toString()}');
+
+    result['sender'] = message['sender'];
+    result['receiver'] = message['receiver'];
+    result['name'] = message['name'];
+    result['action'] = message['action'];
+
     // APNS has strange format
     var aps = message['aps'];
     if (aps != null) {
@@ -167,9 +168,6 @@ class PushNotificationsManager {
         result['title'] = aps['alert']['title'];
         result['body'] = aps['alert']['body'];
       }
-      result['sender'] = message['sender'];
-      result['receiver'] = message['receiver'];
-      result['action'] = message['action'];
     } else {
       Map<dynamic, dynamic> notification = message['notification'];
       if (notification != null) {
@@ -177,12 +175,10 @@ class PushNotificationsManager {
         result['body'] = notification['body'];
       }
       var data = message['data'];
-      result['sender'] = message['sender'];
-      result['receiver'] = message['receiver'];
-      result['action'] = message['action'];
       if (data != null) {
         result['sender'] = data['sender'];
         result['receiver'] = data['receiver'];
+        result['name'] = data['name'];
         result['action'] = data['action'];
       }
     }
@@ -195,6 +191,11 @@ class PushNotificationsManager {
       result['receiver'] = 'ALL';
     }
     result['resultText'] = result['sender'] + '=>' + result['receiver'];
+
+    result['sender_str'] = '';
+    if (result['sender'] != null && result['sender'].length == 11) {
+      result['sender_str'] = phoneMaskHelper(result['sender']);
+    }
     return result;
   }
 
@@ -202,8 +203,19 @@ class PushNotificationsManager {
   static Future<void> showNotificationOnEvent(Map<String, dynamic> message,
       {bool foreground = false}) async {
     Map<String, dynamic> parsedMsg = parseIncomingPushNotification(message);
-
+    print('___________________________________________showNotificationOnEvent');
+    // Входящий звонок
     if (parsedMsg['action'] == 'call') {
+      if (!foreground) {
+        // Показываем пушь на входящий
+        await showIncomingCallNotificationTemplate(parsedMsg);
+      } else {
+        // Отправляем событие о звонке
+        final String payload =
+            'call_' + parsedMsg['sender'] + '=>' + parsedMsg['receiver'];
+        Log.w(TAG, 'payload for pushStream $payload');
+        JabberConn.pushStreamController.add(payload);
+      }
       return;
     }
 
@@ -268,31 +280,41 @@ class PushNotificationsManager {
       localNotificationsPlugin
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+          ?.createNotificationChannel(AndroidNotificationChannel(
+            channelId,
+            channelName,
+            channelDesc,
+            importance: Importance.max,
+          ));
 
       localNotificationsPlugin.initialize(initializationSettings,
           onSelectNotification: (String payload) async {
         if (payload != null) {
           Log.d(TAG, 'notification payload: $payload');
         }
-        selectedNotificationPayload = payload;
+
+        // Не работает нормально с закрытого приложения
         selectNotificationSubject.add(payload);
       });
 
-      // Когда жмакаем на push уведомление
+      // Когда жмакаем-нажимаем на push уведомление
+      // С закрытого приложения это не работает
       selectNotificationSubject.stream.listen((String payload) async {
         if (materialKey == null) {
           return;
         }
-
+        Log.i('selectNotificationSubject', 'payload=$payload');
         // Если мы уже на страничке чата
         if (JabberConn.receiver != null &&
+            payload.contains('=>') &&
             JabberConn.receiver.contains(payload.split('=>')[1])) {
           return;
         }
         // Толкаем на главную
         Navigator.of(materialKey.currentContext)
             .popUntil((route) => route.settings.name == RootScreen.id);
+
+        // С выкинутого не работает контроллер
         JabberConn.pushStreamController.add(payload);
       });
 
@@ -307,12 +329,76 @@ class PushNotificationsManager {
   await flutterLocalNotificationsPlugin.cancelAll();
    */
   static Future<void> showNotification(
-      String title, String body, String payload) async {
+      String title, String body, String payload,
+      {bool fullScreen: false, int notificationId: 0}) async {
     if (localNotificationsPlugin == null) {
       Log.e(TAG, 'push notifications not initialized');
       return;
     }
-    await localNotificationsPlugin
-        .show(0, title, body, platformChannelSpecifics, payload: payload);
+    if (fullScreen) {
+      // Полноэкранный пушь
+      await localNotificationsPlugin.show(
+          notificationId,
+          title,
+          body,
+          NotificationDetails(
+              android: AndroidNotificationDetails(
+            channelId + '2',
+            channelName + '2',
+            channelDesc + '2',
+            importance: Importance.max,
+            priority: Priority.max,
+            fullScreenIntent: true,
+            // Дополнительные опции
+            channelShowBadge: true,
+            icon: '@mipmap/headset',
+            largeIcon: DrawableResourceAndroidBitmap('@mipmap/logo'),
+            playSound: true,
+            sound: RawResourceAndroidNotificationSound('ringtone'),
+          )),
+          payload: payload);
+    } else {
+      await localNotificationsPlugin.show(
+          0,
+          title,
+          body,
+          NotificationDetails(
+              android: AndroidNotificationDetails(
+            channelId + '1',
+            channelName + '1',
+            channelDesc + '1',
+            importance: Importance.max,
+            priority: Priority.max,
+          )),
+          payload: payload);
+    }
+  }
+
+  /* ДЕМОНСТРАЦИОННАЯ ФУНКЦИЯ */
+  static Future<void> showNotificationCustomSound() async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      channelId + '3',
+      channelName + '3',
+      channelDesc + '3',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('ringtone'),
+    );
+    const IOSNotificationDetails iOSPlatformChannelSpecifics =
+        IOSNotificationDetails(sound: 'ringtone.aiff');
+    const MacOSNotificationDetails macOSPlatformChannelSpecifics =
+        MacOSNotificationDetails(sound: 'ringtone.aiff');
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: iOSPlatformChannelSpecifics,
+        macOS: macOSPlatformChannelSpecifics);
+
+    await localNotificationsPlugin.show(
+        NOTIFICATION_ID_CALL,
+        'custom sound notification title',
+        'custom sound notification body',
+        platformChannelSpecifics);
   }
 }

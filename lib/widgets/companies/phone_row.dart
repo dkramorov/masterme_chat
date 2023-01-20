@@ -17,6 +17,7 @@ class PhoneRow extends StatelessWidget {
         Navigator.pushNamed(context, CallScreen.id, arguments: {
           'curPhone': phone,
           'curCompany': company,
+          'startCall': true,
         });
       },
       child: Card(

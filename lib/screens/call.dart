@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:all_sensors/all_sensors.dart';
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/constants.dart';
+import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/helpers/dialogs.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
@@ -38,11 +40,11 @@ class _CallScreenState extends State<CallScreen> {
   CallScreenLogic logic;
 
   bool inCallState = false;
-  bool incomingInProgress = false;
 
   bool audioMuted = false;
   bool speakerOn = false;
   String inCallTime = '00:00';
+  int makeCallPressed = 0;
 
   final GlobalKey<FormState> phoneFormKey = GlobalKey();
   final PhoneFormatter phoneFormatter = PhoneFormatter();
@@ -50,6 +52,7 @@ class _CallScreenState extends State<CallScreen> {
   String phoneNumber = '8';
   String inCallPhoneNumber = '';
   Orgs company;
+  ContactChatModel contact;
 
   TextEditingController _phoneController = new TextEditingController();
 
@@ -133,6 +136,11 @@ class _CallScreenState extends State<CallScreen> {
         company = state['company'];
       });
     }
+    if (state['contact'] != null && state['contact'] != contact) {
+      setState(() {
+        contact = state['contact'];
+      });
+    }
     if (state['inCallState'] != null && state['inCallState'] != inCallState) {
       setState(() {
         inCallState = state['inCallState'];
@@ -164,11 +172,13 @@ class _CallScreenState extends State<CallScreen> {
         inCallTime = state['inCallTime'];
       });
     }
-    if (state['incomingInProgress'] != null &&
-        state['incomingInProgress'] != incomingInProgress) {
+    if (state['makeCallPressed'] != null) {
       setState(() {
-        incomingInProgress = state['incomingInProgress'];
+        makeCallPressed = state['makeCallPressed'];
       });
+    }
+    if (state['startCall'] != null && state['startCall']) {
+      callFormSubmit();
     }
   }
 
@@ -213,7 +223,6 @@ class _CallScreenState extends State<CallScreen> {
       Log.i(TAG, 'already in call');
     }
     phoneFormKey.currentState.save();
-
     /*
     if (SipConnection.helper == null || !SipConnection.helper.registered) {
       openInfoDialog(
@@ -241,16 +250,13 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   List<Widget> buildCallButtons() {
-    if (incomingInProgress) {
+    if (SipConnection.callManagerState == CallManagerState.IncomingStarted) {
       return [
         ActionButton(
           title: 'принять',
           icon: Icons.phone,
           onPressed: () {
             logic.acceptCall();
-            setState(() {
-              incomingInProgress = false;
-            });
           },
           fillColor: Colors.green,
         ),
@@ -278,10 +284,13 @@ class _CallScreenState extends State<CallScreen> {
         ActionButton(
           title: "сброс",
           onPressed: () {
+            if (makeCallPressed > 0) {
+              return;
+            }
             logic.hangup();
           },
           icon: Icons.call_end,
-          fillColor: Colors.red,
+          fillColor: makeCallPressed > 0 ? Colors.grey.shade400 : Colors.red,
         ),
         ActionButton(
           title: 'спикер',
@@ -334,6 +343,39 @@ class _CallScreenState extends State<CallScreen> {
               children: [
                 Text(
                   phoneNumber != null ? phoneNumber : '',
+                  style: TextStyle(fontSize: 16.0),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildContactInfo() {
+    if (contact == null) {
+      return SizedBox();
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ListTile(
+            leading: contact.buildAvatar(),
+            title: Text(
+              contact.getName(),
+              overflow: TextOverflow.ellipsis,
+              style: new TextStyle(
+                fontSize: 20.0,
+                color: new Color(0xFF212121),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Row(
+              children: [
+                Text(
+                  phoneMaskHelper(contact.login),
                   style: TextStyle(fontSize: 16.0),
                 ),
               ],
@@ -406,6 +448,7 @@ class _CallScreenState extends State<CallScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            makeCallPressed > 0 ? Text('Идет соединение') : Text(''),
             Text(inCallPhoneNumber),
             Text(inCallTime),
           ],
@@ -416,7 +459,6 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     if (!widget.inScaffold) {
       return Container(
         child: Center(
@@ -452,6 +494,7 @@ class _CallScreenState extends State<CallScreen> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
             buildCompanyInfo(),
+            buildContactInfo(),
             Container(
               padding: EdgeInsets.symmetric(vertical: 15.0),
               child: Column(

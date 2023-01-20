@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
 import 'package:masterme_chat/screens/call.dart';
 import 'package:masterme_chat/services/jabber_connection.dart';
 
 class ChatHeaderWidget extends StatelessWidget {
-  final String name;
-  final String image;
+  final ContactChatModel contact;
 
-  ChatHeaderWidget({this.name, this.image});
+  ChatHeaderWidget({this.contact});
 
   @override
   Widget build(BuildContext context) {
@@ -28,13 +28,7 @@ class ChatHeaderWidget extends StatelessWidget {
           SizedBox(
             width: 2,
           ),
-          CircleAvatar(
-            backgroundColor: Colors.transparent,
-            backgroundImage: image.startsWith('assets/')
-                ? AssetImage(image)
-                : FileImage(File(image)),
-            maxRadius: 20,
-          ),
+          contact.buildAvatar(),
           SizedBox(
             width: 12,
           ),
@@ -44,7 +38,7 @@ class ChatHeaderWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Text(
-                  name,
+                  contact.getName(),
                   maxLines: 1,
                   overflow: TextOverflow.fade,
                   softWrap: false,
@@ -68,7 +62,6 @@ class ChatHeaderWidget extends StatelessWidget {
             ),
           ),
 
-
           GestureDetector(
             onTap: () {
               if (JabberConn.receiver == null) {
@@ -76,10 +69,11 @@ class ChatHeaderWidget extends StatelessWidget {
               }
               final String phone = JabberConn.receiver.split('@')[0];
               if (phone.length == 11) {
-                //phone = phoneMaskHelper(phone);
                 Navigator.pushNamed(context, CallScreen.id, arguments: {
                   'curPhoneStr': phone,
                   'isSip': true,
+                  'startCall': true,
+                  'curContact': contact,
                 });
               }
             },

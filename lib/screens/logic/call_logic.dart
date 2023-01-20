@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/db/user_history_model.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/helpers/phone_mask.dart';
@@ -11,20 +12,20 @@ import 'package:masterme_chat/screens/logic/default_logic.dart';
 import 'package:masterme_chat/services/sip_connection.dart';
 import 'package:masterme_chat/services/telegram_bot.dart';
 import 'package:masterme_chat/constants.dart';
-import 'package:sip_ua/sip_ua.dart';
 
 import 'package:http/http.dart' as http;
 
 class CallScreenLogic extends AbstractScreenLogic {
   static const TAG = 'CallScreenLogic';
 
-  Call currentCall;
   static UserHistoryModel historyRow;
   Orgs curCompany;
+  ContactChatModel curContact;
   bool isSip = false;
+  bool startCall = false; // Сразу начать звонок
   // Количество секунд, которое мы не будем менять inCallState
-  int makeCallPressedDelay = 5;
-  static int makeCallPressed = 0;
+  int makeCallPressedDelay = 6;
+  static int makeCallPressed = -1;
 
   static final List<List<Map<String, String>>> numPadLabels = [
     [
@@ -51,6 +52,12 @@ class CallScreenLogic extends AbstractScreenLogic {
 
   CallScreenLogic({Function setStateCallback}) {
     this.setStateCallback = setStateCallback;
+    if (this.setStateCallback == null) {
+      this.setStateCallback = (Map<String, dynamic> state) {
+        Log.w(TAG, '--- DUMMY for setStateCallback with params $state ---');
+      };
+    }
+
     this.screenTimer = Timer.periodic(Duration(seconds: 1), (Timer t) async {
       await checkState();
       //Log.d(TAG, '${screenTimer.tick}');
@@ -62,32 +69,35 @@ class CallScreenLogic extends AbstractScreenLogic {
     return TAG;
   }
 
-
   @override
   Future<void> checkState() async {
+    print("______checkState call-${SipConnection.call};reg-${SipConnection.isRegistered}");
     if (SipConnection.helper != null) {
       if (makeCallPressed > 0) {
         makeCallPressed -= 1;
       }
       bool inCallState = makeCallPressed > 0 || SipConnection.inCallState;
 
-      if (!inCallState) {
-        if (SipConnection.audioPlayer != null) {
-          SipConnection.audioPlayer.pause();
-        }
-      }
-
       if (inCallState) {
-        setStateCallback({
+        final Map<String, Object> callState = {
           'inCallTime': SipConnection.calcCallTime(SipConnection.inCallTime),
           'inCallPhoneNumber': SipConnection.inCallPhoneNumber,
-        });
+          'makeCallPressed': makeCallPressed,
+        };
+        Log.d(TAG, callState.toString());
+        setStateCallback(callState);
+      } else {
+        if (SipConnection.call == null) {
+          hangup();
+        }
       }
       setStateCallback({
         'inCallState': inCallState,
-        'incomingInProgress': SipConnection.incomingInProgress,
+        'isOverlayVisible': SipConnection.isOverlayVisible,
+        'incomingInProgress': SipConnection.isRegistered &&
+            SipConnection.callManagerState ==
+                CallManagerState.IncomingInProgress,
       });
-
     }
   }
 
@@ -112,10 +122,10 @@ class CallScreenLogic extends AbstractScreenLogic {
         'notification response ${response.statusCode}, ${response.body.toString()}');
     try {
       var decoded = json.decode(response.body);
-      TelegramBot().notificationResponse(
+      await TelegramBot().notificationResponse(
           'Notification msg: ${response.statusCode}=>${JsonEncoder.withIndent('  ').convert(decoded)}');
     } catch (Exception) {
-      TelegramBot().notificationResponse(
+      await TelegramBot().notificationResponse(
           'Notification msg: ${response.statusCode}=>${response.body.toString()}');
     }
   }
@@ -144,36 +154,35 @@ class CallScreenLogic extends AbstractScreenLogic {
         'notification response ${response.statusCode}, ${response.body.toString()}');
     try {
       var decoded = json.decode(response.body);
-      TelegramBot().notificationResponse(
+      await TelegramBot().notificationResponse(
           'Notification msg: ${response.statusCode}=>${JsonEncoder.withIndent('  ').convert(decoded)}');
     } catch (Exception) {
-      TelegramBot().notificationResponse(
+      await TelegramBot().notificationResponse(
           'Notification msg: ${response.statusCode}=>${response.body.toString()}');
     }
   }
 
   Future<void> makeCall(String phoneNumber) async {
-    final SipConnection sip = SipConnection();
+    makeCallPressed = makeCallPressedDelay; // для задержки смены inCallState
 
+    final SipConnection sip = SipConnection();
     String digits = phoneNumber.replaceAll(RegExp('[^0-9]+'), '');
     String sipNumber = phoneNumber;
     if (isSip) {
       sipNumber = 'sip: $phoneNumber';
     }
 
-    await sip.handleHangup();
-    await SipConnection.playOutgoingSound();
-
     SipConnection.inCallTime = 0;
     setStateCallback({
+      'makeCallPressed': makeCallPressed,
       'inCallState': true,
       'inCallTime': SipConnection.calcCallTime(SipConnection.inCallTime),
       'inCallPhoneNumber': sipNumber,
     });
 
-    makeCallPressed = makeCallPressedDelay; // для задержки смены inCallState
+    await sip.handleHangup();
 
-    await sip.init(JabberConn.curUser.login);
+    await sip.init(JabberConn.curUser?.login);
     SipConnection.inCallPhoneNumber = phoneNumber;
     // Записываем в историю
     if (curCompany != null) {
@@ -182,23 +191,26 @@ class CallScreenLogic extends AbstractScreenLogic {
       await call2History(digits);
     }
 
-    SipConnection.pendingCall = Timer(Duration(seconds: 3), () {
-      if (isSip) {
-        //await sendCallPush(digits);
-        sip.handleSipCall(digits);
-      } else {
-        sip.handleCall(digits);
+    await SipConnection.playOutgoingSound();
+    for (int i=0; i<10; i++) {
+      await Future.delayed(Duration(milliseconds: 500));
+      if (SipConnection.isRegistered) {
+        if (isSip) {
+          await sip.handleSipCall(digits);
+        } else {
+          await sip.handleCall(digits);
+        }
+        await sendCallPush(digits);
+        return;
       }
-    });
+      print('---[ERROR]--- still not registered');
+    }
   }
 
-  void acceptCall() async {
-    if (SipConnection.call == null) {
-      Log.d(TAG, 'Already null sipConnection or call');
-      return;
-    }
+  Future<void> acceptCall() async {
+    /* Принять звонок */
+    await SipConnection().acceptCall();
     makeCallPressed = -1;
-    SipConnection().acceptCall();
   }
 
   void hangup() {
@@ -208,10 +220,10 @@ class CallScreenLogic extends AbstractScreenLogic {
   }
 
   void toggleMute() {
-      SipConnection().muteAudio();
-      //sipConnection.muteVideo();
-      //setStateCallback({'audioMuted': sipConnection.videoMuted});
-      setStateCallback({'audioMuted': SipConnection.audioMuted});
+    SipConnection().muteAudio();
+    //sipConnection.muteVideo();
+    //setStateCallback({'audioMuted': sipConnection.videoMuted});
+    setStateCallback({'audioMuted': SipConnection.audioMuted});
   }
 
   void toggleSpeaker() {
@@ -263,7 +275,6 @@ class CallScreenLogic extends AbstractScreenLogic {
     } else {
       result = '8';
     }
-
     if (result.length == 11) {
       return phoneMaskHelper(result);
     }
@@ -300,6 +311,13 @@ class CallScreenLogic extends AbstractScreenLogic {
             'company': curCompany,
           });
         }
+        curContact = arguments['curContact'];
+        if (curContact != null) {
+          Log.d(TAG, '--- parsedArgument contact $curContact');
+          setStateCallback({
+            'contact': curContact,
+          });
+        }
         isSip = arguments['isSip'];
         if (isSip != null) {
           Log.d(TAG, '--- parsedArgument isSip $isSip');
@@ -308,6 +326,20 @@ class CallScreenLogic extends AbstractScreenLogic {
           });
         } else {
           isSip = false;
+        }
+        String incomingCallFrom = arguments['incomingCallFrom'];
+        if (incomingCallFrom != null) {
+          Log.d(TAG, '--- parsedArgument incomingCallFrom $incomingCallFrom');
+          setStateCallback({
+            'incomingCallFrom': incomingCallFrom,
+          });
+        }
+        startCall = arguments['startCall'];
+        if (startCall != null && startCall) {
+          Log.d(TAG, '--- parsedArgument startCall $startCall');
+          setStateCallback({
+            'startCall': true,
+          });
         }
       }
     });

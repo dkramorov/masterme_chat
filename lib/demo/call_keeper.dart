@@ -5,7 +5,11 @@ import 'package:callkeep/callkeep.dart';
 import 'package:masterme_chat/helpers/log.dart';
 import 'package:masterme_chat/services/sip_connection.dart';
 import 'package:uuid/uuid.dart';
-import 'jabber_connection.dart';
+import '../services/jabber_connection.dart';
+
+// https://github.com/flutter-webrtc/callkeep/issues/45
+// Рекомендуют connectycube_flutter_call_kit для custom Incoming Call Screen
+
 
 class FakeCall {
   FakeCall(this.number);
@@ -68,27 +72,31 @@ class CallKeeper {
     // SETUP
     await setup();
 
-    Log.d(TAG, 'displayIncomingCall ($callerId)');
+    Log.d(TAG, 'displayIncomingCall callerId=($callerId)');
 
     await callKeep.displayIncomingCall(
         callerUuid, callerId, localizedCallerName: callerName,
         hasVideo: false);
 
-    if (JabberConn.curUser == null) {
-      Log.d(TAG, 'SIP user is null, breaking call...');
-      //await callKeep.endAllCalls();
-    } else {
-      Log.d(TAG, 'SIP user is NOT null, try display CALL...');
-    }
-
     await callKeep.backToForeground();
-
     return null;
   }
 
   Future<void> setup() async {
     print('callKeep initialized $initialized');
+
     if (!initialized) {
+      callKeep.on(CallKeepDidDisplayIncomingCall(), didDisplayIncomingCall);
+      callKeep.on(CallKeepPerformAnswerCallAction(), answerCall);
+      callKeep.on(CallKeepDidPerformDTMFAction(), didPerformDTMFAction);
+      callKeep.on(
+          CallKeepDidReceiveStartCallAction(), didReceiveStartCallAction);
+      callKeep.on(CallKeepDidToggleHoldAction(), didToggleHoldCallAction);
+      callKeep.on(
+          CallKeepDidPerformSetMutedCallAction(), didPerformSetMutedCallAction);
+      callKeep.on(CallKeepPerformEndCallAction(), endCall);
+      callKeep.on(CallKeepPushKitToken(), onPushKitToken);
+
       await callKeep.setup(
           <String, dynamic>{
             'ios': {
@@ -106,6 +114,7 @@ class CallKeeper {
                 'notificationTitle': 'My app is running on background',
                 'notificationIcon': 'Path to the resource icon of the notification',
               },
+              'selfManaged': true,
             },
           });
 
@@ -133,6 +142,10 @@ class CallKeeper {
               if (sipTimerCount <= 0) {
                 stopSipTimer();
               }
+
+              /*
+
+
               Log.d(TAG, '----callKeeper TIMER=$sipTimerCount,' +
                   ' sip incoming=${SipConnection.incomingInProgress},'
                       ' sip state=${SipConnection.state}---');
@@ -140,6 +153,9 @@ class CallKeeper {
                 stopSipTimer();
                 sip.acceptCall();
               }
+
+
+              */
             });
           });
 
@@ -316,22 +332,6 @@ class CallKeeper {
     }
 
   }
-
-  void initState() {
-    callKeep.on(CallKeepDidDisplayIncomingCall(), didDisplayIncomingCall);
-    callKeep.on(CallKeepPerformAnswerCallAction(), answerCall);
-    callKeep.on(CallKeepDidPerformDTMFAction(), didPerformDTMFAction);
-    callKeep.on(
-        CallKeepDidReceiveStartCallAction(), didReceiveStartCallAction);
-    callKeep.on(CallKeepDidToggleHoldAction(), didToggleHoldCallAction);
-    callKeep.on(
-        CallKeepDidPerformSetMutedCallAction(), didPerformSetMutedCallAction);
-    callKeep.on(CallKeepPerformEndCallAction(), endCall);
-    callKeep.on(CallKeepPushKitToken(), onPushKitToken);
-
-    // SETUP
-    setup();
-  }
-
 }
+
 */

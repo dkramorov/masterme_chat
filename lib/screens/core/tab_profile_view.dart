@@ -114,7 +114,7 @@ class _TabProfileViewState extends State<TabProfileView> {
   Widget buildView() {
     return Container(
       color: Colors.white,
-      child: new ListView(
+      child: ListView(
         children: <Widget>[
           Column(
             children: <Widget>[
@@ -235,7 +235,7 @@ class _TabProfileViewState extends State<TabProfileView> {
                                 Text(
                                   'Персональная информация',
                                   style: TextStyle(
-                                    fontSize: 17.0,
+                                    fontSize: 16.0,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
+import 'package:masterme_chat/constants.dart';
 import 'package:masterme_chat/db/contact_chat_model.dart';
 import 'package:masterme_chat/screens/chat.dart';
 import 'package:masterme_chat/widgets/chat/avatar_widget.dart';
@@ -20,6 +21,17 @@ class ChatUserWidget extends StatefulWidget {
 class _ChatUserWidgetState extends State<ChatUserWidget> {
   final DateFormat formatter = DateFormat('HH:mm');
 
+  Widget buildAvatar(String avatar) {
+    if (avatar == null) {
+      avatar = DEFAULT_AVATAR;
+    }
+    return Avatar(
+      //key: widget.key,
+      imgPath: avatar,
+      isOnline: false, // TODO => онлайн пользователя
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final containerMsgTextWidth = MediaQuery.of(context).size.width * 0.40;
@@ -34,11 +46,16 @@ class _ChatUserWidgetState extends State<ChatUserWidget> {
         });
       },
       child: ListTile(
-        leading: Avatar(
-          //key: widget.key,
-          imgPath: widget.user.getAvatar(),
-          isOnline: false, // TODO => онлайн пользователя
-        ),
+        leading: FutureBuilder<String>(
+            future: widget.user.getAvatar(),
+            builder:
+                (BuildContext context, AsyncSnapshot<String> snapshot) {
+              if (snapshot.hasData) {
+                return buildAvatar(snapshot.data);
+              } else {
+                return buildAvatar(null);
+              }
+            }),
         /*
         leading: CircleAvatar(
           backgroundColor: Colors.grey[100],
